@@ -29,17 +29,35 @@ import { Submission } from './modules/submissions/entities/submission.entity';
     // Database
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (cfg: ConfigService) => ({
-        type: 'postgres',
-        host: cfg.get('DB_HOST'),
-        port: +(cfg.get<string>('DB_PORT') ?? '5432'),
-        username: cfg.get('DB_USERNAME'),
-        password: cfg.get('DB_PASSWORD'),
-        database: cfg.get('DB_NAME'),
-        entities: [User, Course, Enrollment, Exercise, TestCase, Submission],
-        synchronize: cfg.get<string>('DB_SYNCHRONIZE') === 'true',
-        logging: cfg.get<string>('DB_LOGGING') === 'true',
-      }),
+      useFactory: (cfg: ConfigService) => {
+        const databaseUrl = cfg.get<string>('DATABASE_URL');
+
+        if (databaseUrl) {
+          // Production (Render)
+          return {
+            type: 'postgres',
+            url: databaseUrl,
+            entities: [User, Course, Enrollment, Exercise, TestCase, Submission],
+            synchronize: false,
+            ssl: {
+              rejectUnauthorized: false,
+            },
+          };
+        }
+
+        // Local development
+        return {
+          type: 'postgres',
+          host: cfg.get('DB_HOST'),
+          port: +(cfg.get<string>('DB_PORT') ?? '5432'),
+          username: cfg.get('DB_USERNAME'),
+          password: cfg.get('DB_PASSWORD'),
+          database: cfg.get('DB_NAME'),
+          entities: [User, Course, Enrollment, Exercise, TestCase, Submission],
+          synchronize: cfg.get<string>('DB_SYNCHRONIZE') === 'true',
+          logging: cfg.get<string>('DB_LOGGING') === 'true',
+        };
+      }
     }),
 
     // Feature modules
