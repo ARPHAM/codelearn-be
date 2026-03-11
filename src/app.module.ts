@@ -38,7 +38,7 @@ import { Submission } from './modules/submissions/entities/submission.entity';
             type: 'postgres',
             url: databaseUrl,
             entities: [User, Course, Enrollment, Exercise, TestCase, Submission],
-            synchronize: false,
+            synchronize: true,
             ssl: {
               rejectUnauthorized: false,
             },
