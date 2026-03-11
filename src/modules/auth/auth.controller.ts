@@ -1,10 +1,22 @@
 import {
-  Controller, Post, Body, UseGuards, HttpCode, HttpStatus,
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Res,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+
+import type { Response, Request } from 'express';
+import { Req } from '@nestjs/common';
+
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto, RefreshTokenDto, ForgotPasswordDto, LogoutDto } from './dto/auth.dto';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import {
+  LoginDto,
+  RegisterDto,
+  ForgotPasswordDto,
+} from './dto/auth.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -14,8 +26,31 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Đăng nhập bằng email & mật khẩu' })
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.login(dto);
+
+    res.cookie('accessToken', result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
+      path: '/',
+      maxAge: 1000 * 60 * 10, //10 minutes
+    });
+
+    res.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
+      path: '/',
+      maxAge: 1000 * 60 * 60 * 24 * 30, //30 days
+    });
+
+    return {
+      user: result.user,
+    };
   }
 
   @Post('register')
@@ -25,19 +60,52 @@ export class AuthController {
   }
 
   @Post('logout')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Huỷ phiên đăng nhập' })
-  logout(@Body() dto: LogoutDto) {
-    return this.authService.logout(dto);
+  logout(
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    res.clearCookie('accessToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
+      path: '/',
+    });
+
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
+      path: '/',
+    });
+
+    return {
+      message: 'Da dang xuat thanh cong',
+    };
   }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Làm mới access token' })
-  refresh(@Body() dto: RefreshTokenDto) {
-    return this.authService.refresh(dto);
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = req.cookies?.refreshToken;
+
+    const result = await this.authService.refresh(refreshToken);
+
+    res.cookie('accessToken', result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
+      path: '/',
+      maxAge: 1000 * 60 * 5, // 5 minutes
+    });
+
+    return {
+      message: 'Token refreshed',
+    };
   }
 
   @Post('forgot-password')

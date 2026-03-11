@@ -3,19 +3,19 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Role } from '../../../common/enums/role.enum';
 
 export class LoginDto {
-  @ApiProperty({ example: 'sv@hcmus.edu.vn' })
+  @ApiProperty({ example: '12345678@st.neu.edu.vn' })
   @IsEmail()
   email: string;
 
-  @ApiProperty({ example: '123456' })
+  @ApiProperty({ example: '12345678' })
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
   password: string;
 
   @ApiPropertyOptional({ enum: Role })
   @IsEnum(Role)
   @IsOptional()
-  role?: Role;
+  role: Role;
 }
 
 export class RegisterDto {
@@ -47,20 +47,8 @@ export class RegisterDto {
   major?: string;
 }
 
-export class RefreshTokenDto {
-  @ApiProperty()
-  @IsString()
-  refreshToken: string;
-}
-
 export class ForgotPasswordDto {
   @ApiProperty({ example: 'sv@hcmus.edu.vn' })
   @IsEmail()
   email: string;
-}
-
-export class LogoutDto {
-  @ApiProperty()
-  @IsString()
-  refreshToken: string;
 }
