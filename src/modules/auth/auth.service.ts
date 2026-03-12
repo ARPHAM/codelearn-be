@@ -161,4 +161,18 @@ export class AuthService {
       message: 'Email huong dan da duoc gui',
     };
   }
+
+  async me(user: User) {
+    if (!user) {
+      throw new UnauthorizedException('User khong ton tai');
+    }
+
+    return {
+        id: user.id,
+        name: user.fullName,
+        role: user.role,
+        email: user.email,
+        avatar: user.avatarUrl,
+    };
+  }
 }

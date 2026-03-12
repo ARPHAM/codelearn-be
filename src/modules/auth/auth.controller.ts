@@ -1,10 +1,12 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
   HttpCode,
   HttpStatus,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 
 import type { Response, Request } from 'express';
@@ -17,6 +19,9 @@ import {
   RegisterDto,
   ForgotPasswordDto,
 } from './dto/auth.dto';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { User } from '../users/entities/user.entity';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -32,18 +37,20 @@ export class AuthController {
   ) {
     const result = await this.authService.login(dto);
 
+    const isProd = process.env.NODE_ENV === 'production';
+
     res.cookie('accessToken', result.accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
       path: '/',
       maxAge: 1000 * 60 * 10, //10 minutes
     });
 
     res.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
       path: '/',
       maxAge: 1000 * 60 * 60 * 24 * 30, //30 days
     });
@@ -65,17 +72,20 @@ export class AuthController {
   logout(
     @Res({ passthrough: true }) res: Response,
   ) {
+
+    const isProd = process.env.NODE_ENV === 'production';
+
     res.clearCookie('accessToken', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
       path: '/',
     });
 
     res.clearCookie('refreshToken', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
       path: '/',
     });
 
@@ -95,10 +105,12 @@ export class AuthController {
 
     const result = await this.authService.refresh(refreshToken);
 
+    const isProd = process.env.NODE_ENV === 'production';
+
     res.cookie('accessToken', result.accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
       path: '/',
       maxAge: 1000 * 60 * 5, // 5 minutes
     });
@@ -113,5 +125,13 @@ export class AuthController {
   @ApiOperation({ summary: 'Gửi email reset mật khẩu' })
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto);
+  }
+
+  @Get('me')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Xác minh tài khoản' })
+  @UseGuards(JwtAuthGuard)
+  Me(@CurrentUser() user: User) {
+    return this.authService.me(user);
   }
 }
