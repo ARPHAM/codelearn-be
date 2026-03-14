@@ -7,11 +7,13 @@ import { Submission } from './entities/submission.entity';
 import { Exercise } from '../exercises/entities/exercise.entity';
 import { ExercisesModule } from '../exercises/exercises.module';
 import { SubmissionsProcessor } from './submissions.processor';
+import { ExecutionModule } from '../execution/execution.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Submission, Exercise]),
     ExercisesModule,
+    ExecutionModule,
     BullModule.registerQueue({
       name: 'code-execution',
     }),

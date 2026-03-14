@@ -15,6 +15,7 @@ import { BattlesModule } from './modules/battles/battles.module';
 import { PairRoomsModule } from './modules/pair-rooms/pair-rooms.module';
 import { ExamsModule } from './modules/exams/exams.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { ExecutionModule } from './modules/execution/execution.module';
 
 // Entities
 import { User } from './modules/users/entities/user.entity';
@@ -84,6 +85,7 @@ import { Submission } from './modules/submissions/entities/submission.entity';
     PairRoomsModule,
     ExamsModule,
     AdminModule,
+    ExecutionModule,
   ],
 })
 export class AppModule {}

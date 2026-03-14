@@ -51,7 +51,8 @@ export class SubmissionsService {
       files: dto.files.map(f => ({
         path: f.filename,
         content: f.content
-      }))
+      })),
+      mainFile: dto.mainFile,
     });
 
     return {
@@ -68,7 +69,7 @@ export class SubmissionsService {
       throw new ForbiddenException('Khong co quyen xem submission nay');
     }
     return { status: sub.status, score: sub.score, passed: sub.passed, total: sub.total,
-      timeCpu: sub.cpuTime ? sub.cpuTime + 's' : null, memoryMb: sub.memoryMb, testResults: [], stderr: sub.stderr };
+      timeCpu: sub.cpuTime ? sub.cpuTime + 's' : null, memoryMb: sub.memoryMb, testResults: [], stdout: sub.stdout, stderr: sub.stderr };
   }
 
   async getByExercise(exerciseId: number, query: ListSubmissionsDto) {
