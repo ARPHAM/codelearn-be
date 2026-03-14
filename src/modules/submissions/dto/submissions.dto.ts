@@ -1,10 +1,46 @@
-﻿import { IsString, IsNumber, IsOptional } from 'class-validator';
+﻿import { IsString, IsNumber, IsOptional, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+export class CodeFileDto {
+  @ApiProperty({ example: 'main.py' })
+  @IsString()
+  filename: string;
+
+  @ApiProperty()
+  @IsString()
+  content: string;
+}
+
 export class CreateSubmissionDto {
-  @ApiProperty({ example: 1 }) @IsNumber() exerciseId: number;
-  @ApiProperty({ enum: ['python', 'cpp', 'java', 'js'] }) @IsString() language: string;
-  @ApiProperty() @IsString() sourceCode: string;
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  exerciseId: number;
+
+  @ApiProperty({
+    enum: [
+      'python',
+      'cpp',
+      'java',
+      'javascript',
+      'typescript',
+      'csharp',
+      'go',
+      'rust',
+      'php',
+      'ruby',
+      'sql'
+    ]
+  })
+  @IsString()
+  language: string;
+
+  @ApiProperty({ example: 'main.py' })
+  @IsString()
+  mainFile: string;
+
+  @ApiProperty({ type: [CodeFileDto] })
+  @IsArray()
+  files: CodeFileDto[];
 }
 
 export class UpdateScoreDto {

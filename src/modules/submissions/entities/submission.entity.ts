@@ -1,4 +1,4 @@
-﻿import {
+import {
   Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
@@ -45,8 +45,14 @@ export class Submission {
   @Column({ name: 'cpu_time', type: 'numeric', precision: 8, scale: 3, nullable: true })
   cpuTime: number;
 
+  @Column({ name: 'execution_time', type: 'numeric', precision: 8, scale: 3, nullable: true })
+  executionTime: number;
+
   @Column({ name: 'memory_mb', type: 'numeric', precision: 8, scale: 2, nullable: true })
   memoryMb: number;
+
+  @Column({ type: 'text', nullable: true })
+  stdout: string;
 
   @Column({ type: 'text', nullable: true })
   stderr: string;

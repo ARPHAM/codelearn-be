@@ -1,6 +1,8 @@
 ﻿import {
   Injectable, NotFoundException, ForbiddenException,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bull';
+import type { Queue } from 'bull';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Submission } from './entities/submission.entity';
@@ -15,17 +17,48 @@ export class SubmissionsService {
   constructor(
     @InjectRepository(Submission) private submissionRepo: Repository<Submission>,
     @InjectRepository(Exercise) private exerciseRepo: Repository<Exercise>,
+    @InjectQueue('code-execution') private submissionQueue: Queue,
   ) {}
 
   async submit(dto: CreateSubmissionDto, student: User) {
     const exercise = await this.exerciseRepo.findOne({ where: { id: dto.exerciseId } });
     if (!exercise) throw new NotFoundException('Bai tap khong ton tai');
+
+    const mainFile = dto.files.find(f => f.filename === dto.mainFile);
+    if (!mainFile) {
+      throw new NotFoundException('Khong tim thay file main');
+    }
+
     const submission = this.submissionRepo.create({
-      exerciseId: dto.exerciseId, studentId: student.id,
-      language: dto.language, sourceCode: dto.sourceCode, status: SubmissionStatus.QUEUED,
+      exerciseId: dto.exerciseId,
+      studentId: student.id,
+      language: dto.language,
+
+      // lưu JSON
+      sourceCode: JSON.stringify({
+        mainFile: dto.mainFile,
+        files: dto.files
+      }),
+
+      status: SubmissionStatus.QUEUED,
     });
+
     const saved = await this.submissionRepo.save(submission);
-    return { submissionId: saved.id, status: 'queued', message: 'Da nhan code. Dang cham...' };
+
+    await this.submissionQueue.add({
+      submissionId: saved.id,
+      language: dto.language,
+      files: dto.files.map(f => ({
+        path: f.filename,
+        content: f.content
+      }))
+    });
+
+    return {
+      submissionId: saved.id,
+      status: 'queued',
+      message: 'Da nhan code. Dang cham...'
+    };
   }
 
   async getResult(id: number, currentUser: User) {

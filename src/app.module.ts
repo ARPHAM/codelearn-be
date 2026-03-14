@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BullModule } from '@nestjs/bull';
 
 // Feature modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -58,6 +59,17 @@ import { Submission } from './modules/submissions/entities/submission.entity';
           logging: cfg.get<string>('DB_LOGGING') === 'true',
         };
       }
+    }),
+
+    // Redis Queue (Bull)
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: async (cfg: ConfigService) => ({
+        redis: {
+          host: cfg.get<string>('REDIS_HOST', 'localhost'),
+          port: cfg.get<number>('REDIS_PORT', 6379),
+        },
+      }),
     }),
 
     // Feature modules
