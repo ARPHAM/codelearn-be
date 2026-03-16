@@ -3,8 +3,7 @@ import { Server } from 'socket.io';
 
 @WebSocketGateway({
   cors: {
-    origin: ['http://localhost:3000'],
-    credentials: true,
+    origin: '*',
   },
 })
 export class ExecutionGateway {
