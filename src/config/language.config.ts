@@ -13,8 +13,8 @@ export const languageConfig: Record<
   },
 
   typescript: {
-    image: 'node:20',
-    run: 'npx ts-node {entry}',
+    image: 'codelearn-node',
+    run: 'ts-node {entry}',
   },
 
   cpp: {
