@@ -21,7 +21,7 @@ import {
 } from './dto/auth.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { User } from '../users/entities/user.entity';
+import { User } from '../user/entities/user.entity';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -66,33 +66,33 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
-  @Post('logout')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Huỷ phiên đăng nhập' })
-  logout(
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  // @Post('logout')
+  // @HttpCode(HttpStatus.OK)
+  // @ApiOperation({ summary: 'Huỷ phiên đăng nhập' })
+  // logout(
+  //   @Res({ passthrough: true }) res: Response,
+  // ) {
 
-    const isProd = process.env.NODE_ENV === 'production';
+  //   const isProd = process.env.NODE_ENV === 'production';
 
-    res.clearCookie('accessToken', {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
-      path: '/',
-    });
+  //   res.clearCookie('accessToken', {
+  //     httpOnly: true,
+  //     secure: isProd,
+  //     sameSite: isProd ? 'none' : 'lax',
+  //     path: '/',
+  //   });
 
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
-      path: '/',
-    });
+  //   res.clearCookie('refreshToken', {
+  //     httpOnly: true,
+  //     secure: isProd,
+  //     sameSite: isProd ? 'none' : 'lax',
+  //     path: '/',
+  //   });
 
-    return {
-      message: 'Da dang xuat thanh cong',
-    };
-  }
+  //   return {
+  //     message: 'Da dang xuat thanh cong',
+  //   };
+  // }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
@@ -112,7 +112,7 @@ export class AuthController {
       secure: isProd,
       sameSite: isProd ? 'none' : 'lax',
       path: '/',
-      maxAge: 1000 * 60 * 5, // 5 minutes
+      maxAge: 1000 * 60 * 10, // 5 minutes
     });
 
     return {
@@ -120,12 +120,12 @@ export class AuthController {
     };
   }
 
-  @Post('forgot-password')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Gửi email reset mật khẩu' })
-  forgotPassword(@Body() dto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(dto);
-  }
+  // @Post('forgot-password')
+  // @HttpCode(HttpStatus.OK)
+  // @ApiOperation({ summary: 'Gửi email reset mật khẩu' })
+  // forgotPassword(@Body() dto: ForgotPasswordDto) {
+  //   return this.authService.forgotPassword(dto);
+  // }
 
   @Get('me')
   @HttpCode(HttpStatus.OK)

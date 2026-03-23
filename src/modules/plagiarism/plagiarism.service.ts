@@ -1,7 +1,7 @@
 ﻿import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Submission } from '../submissions/entities/submission.entity';
+import { Submission } from '../submission/entities/submission.entity';
 
 @Injectable()
 export class PlagiarismService {

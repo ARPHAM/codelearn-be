@@ -10,7 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 
-import { User } from '../users/entities/user.entity';
+import { User } from '../user/entities/user.entity';
 import {
   LoginDto,
   RegisterDto,
@@ -168,11 +168,14 @@ export class AuthService {
     }
 
     return {
-        id: user.id,
         name: user.fullName,
         role: user.role,
         email: user.email,
         avatar: user.avatarUrl,
+        mssv: user.mssv,
+        major: user.major,
+        rating: user.rating,
+        xp: user.xp,
     };
   }
 }

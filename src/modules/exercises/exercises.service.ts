@@ -4,7 +4,7 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Exercise, TestCase } from './entities/exercise.entity';
-import { User } from '../users/entities/user.entity';
+import { User } from '../user/entities/user.entity';
 import { CreateExerciseDto, UpdateExerciseDto, ListExercisesDto } from './dto/exercises.dto';
 import { Role } from '../../common/enums/role.enum';
 

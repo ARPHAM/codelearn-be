@@ -1,8 +1,8 @@
 ﻿import {
   Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, OneToMany,
 } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
-import { Course } from '../../courses/entities/course.entity';
+import { User } from '../../user/entities/user.entity';
+import { Course } from '../../course/entities/course.entity';
 import { Difficulty } from '../../../common/enums/difficulty.enum';
 
 @Entity('exercises')

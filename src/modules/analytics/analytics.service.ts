@@ -1,8 +1,8 @@
-﻿import { Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Submission } from '../submissions/entities/submission.entity';
-import { Enrollment } from '../courses/entities/course.entity';
+import { Submission } from '../submission/entities/submission.entity';
+import { Enrollment } from '../course/entities/course.entity';
 
 @Injectable()
 export class AnalyticsService {
@@ -18,7 +18,7 @@ export class AnalyticsService {
   }
 
   async getStudentAnalytics(studentId: number) {
-    const submissions = await this.submissionRepo.find({ where: { studentId } });
+    const submissions = await this.submissionRepo.find({ where: { userId: studentId } });
     const solved = submissions.filter((s) => s.score && s.score >= 100).length;
     return { solved, passRate: 58, avgTime: 51, weekActivity: [20, 35, 28, 45, 52, 38, 30], stuckExercises: [] };
   }

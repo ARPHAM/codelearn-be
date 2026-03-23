@@ -2,7 +2,7 @@
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BattlesController } from './battles.controller';
 import { BattlesService } from './battles.service';
-import { User } from '../users/entities/user.entity';
+import { User } from '../user/entities/user.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([User])],

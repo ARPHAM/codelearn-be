@@ -5,23 +5,36 @@ import { BullModule } from '@nestjs/bull';
 
 // Feature modules
 import { AuthModule } from './modules/auth/auth.module';
-import { CoursesModule } from './modules/courses/courses.module';
-import { ExercisesModule } from './modules/exercises/exercises.module';
-import { SubmissionsModule } from './modules/submissions/submissions.module';
-import { PlagiarismModule } from './modules/plagiarism/plagiarism.module';
-import { AnalyticsModule } from './modules/analytics/analytics.module';
-import { LearningPathModule } from './modules/learning-path/learning-path.module';
-import { BattlesModule } from './modules/battles/battles.module';
-import { PairRoomsModule } from './modules/pair-rooms/pair-rooms.module';
-import { ExamsModule } from './modules/exams/exams.module';
-import { AdminModule } from './modules/admin/admin.module';
-import { ExecutionModule } from './modules/execution/execution.module';
+// import { CoursesModule } from './modules/courses/courses.module';
+// import { ExercisesModule } from './modules/exercises/exercises.module';
+// import { SubmissionsModule } from './modules/submissions/submissions.module';
+// import { PlagiarismModule } from './modules/plagiarism/plagiarism.module';
+// import { AnalyticsModule } from './modules/analytics/analytics.module';
+// import { LearningPathModule } from './modules/learning-path/learning-path.module';
+// import { BattlesModule } from './modules/battles/battles.module';
+// import { PairRoomsModule } from './modules/pair-rooms/pair-rooms.module';
+// import { ExamsModule } from './modules/exams/exams.module';
+// import { AdminModule } from './modules/admin/admin.module';
+// import { ExecutionModule } from './modules/execution/execution.module';
 
 // Entities
-import { User } from './modules/users/entities/user.entity';
-import { Course, Enrollment } from './modules/courses/entities/course.entity';
-import { Exercise, TestCase } from './modules/exercises/entities/exercise.entity';
-import { Submission } from './modules/submissions/entities/submission.entity';
+import { User } from './modules/user/entities/user.entity';
+// import { Course, Enrollment } from './modules/courses/entities/course.entity';
+// import { Exercise, TestCase } from './modules/exercises/entities/exercise.entity';
+// import { Submission } from './modules/submissions/entities/submission.entity';
+// import { SubmissionResult } from './modules/submissions/entities/submission-result.entity';
+// import { Problem } from './modules/problems/entities/problem.entity';
+// import { ProblemVersion } from './modules/problems/entities/problem-version.entity';
+// import { ProblemExample } from './modules/problems/entities/problem-example.entity';
+// import { Testcase } from './modules/problems/entities/testcase.entity';
+// import { Language } from './modules/problems/entities/language.entity';
+// import { ProblemLanguage } from './modules/problems/entities/problem-language.entity';
+// import { ProblemStats } from './modules/problems/entities/problem-stats.entity';
+// import { Tag } from './modules/problems/entities/tag.entity';
+// import { ProblemTag } from './modules/problems/entities/problem-tag.entity';
+// import { Exam } from './modules/exams/entities/exam.entity';
+// import { ExamProblem } from './modules/exams/entities/exam-problem.entity';
+// import { RunExecution } from './modules/runs/entities/run-execution.entity';
 
 @Module({
   imports: [
@@ -39,7 +52,8 @@ import { Submission } from './modules/submissions/entities/submission.entity';
           return {
             type: 'postgres',
             url: databaseUrl,
-            entities: [User, Course, Enrollment, Exercise, TestCase, Submission],
+            // entities: [User, Course, Enrollment, Exercise, TestCase, Submission, SubmissionResult, Problem, ProblemVersion, ProblemExample, Testcase, Language, ProblemLanguage, ProblemStats, Tag, ProblemTag, Exam, ExamProblem, RunExecution],
+            entities: [User],
             synchronize: true,
             ssl: {
               rejectUnauthorized: false,
@@ -55,7 +69,8 @@ import { Submission } from './modules/submissions/entities/submission.entity';
           username: cfg.get('DB_USERNAME'),
           password: cfg.get('DB_PASSWORD'),
           database: cfg.get('DB_NAME'),
-          entities: [User, Course, Enrollment, Exercise, TestCase, Submission],
+          // entities: [User, Course, Enrollment, Exercise, TestCase, Submission, SubmissionResult, Problem, ProblemVersion, ProblemExample, Testcase, Language, ProblemLanguage, ProblemStats, Tag, ProblemTag, Exam, ExamProblem, RunExecution],
+          entities: [User],
           synchronize: cfg.get<string>('DB_SYNCHRONIZE') === 'true',
           logging: cfg.get<string>('DB_LOGGING') === 'true',
         };
@@ -75,17 +90,17 @@ import { Submission } from './modules/submissions/entities/submission.entity';
 
     // Feature modules
     AuthModule,
-    CoursesModule,
-    ExercisesModule,
-    SubmissionsModule,
-    PlagiarismModule,
-    AnalyticsModule,
-    LearningPathModule,
-    BattlesModule,
-    PairRoomsModule,
-    ExamsModule,
-    AdminModule,
-    ExecutionModule,
+    // CoursesModule,
+    // ExercisesModule,
+    // SubmissionsModule,
+    // PlagiarismModule,
+    // AnalyticsModule,
+    // LearningPathModule,
+    // BattlesModule,
+    // PairRoomsModule,
+    // ExamsModule,
+    // AdminModule,
+    // ExecutionModule,
   ],
 })
 export class AppModule {}
