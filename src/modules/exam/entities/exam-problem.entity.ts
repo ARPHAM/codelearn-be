@@ -2,7 +2,7 @@ import {
   Entity, Column, ManyToOne, JoinColumn, Index,
 } from 'typeorm';
 import { Exam } from './exam.entity';
-import { Problem } from '../problem/entities/problem.entity';
+import { Problem } from '../../problem/entities/problem.entity';
 
 @Entity('exam_problems')
 @Index(['exam', 'problem'], { unique: true })
