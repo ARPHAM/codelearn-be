@@ -4,9 +4,9 @@ import { BullModule } from '@nestjs/bull';
 import { RunsController } from './runs.controller';
 import { RunsService } from './runs.service';
 import { RunExecution } from './entities/run-execution.entity';
-import { ProblemVersion } from '../problems/entities/problem-version.entity';
-import { ProblemExample } from '../problems/entities/problem-example.entity';
-import { Language } from '../problems/entities/language.entity';
+import { ProblemVersion } from '../problem/entities/problem-version.entity';
+import { Testcase } from '../problem/entities/testcase.entity';
+import { Language } from '../problem/entities/language.entity';
 import { RunsProcessor } from './runs.processor';
 
 @Module({
@@ -14,7 +14,7 @@ import { RunsProcessor } from './runs.processor';
     TypeOrmModule.forFeature([
       RunExecution,
       ProblemVersion,
-      ProblemExample,
+      Testcase,
       Language,
     ]),
     BullModule.registerQueue({

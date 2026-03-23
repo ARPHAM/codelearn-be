@@ -2,7 +2,7 @@ import {
   Entity, PrimaryColumn, Column,
   ManyToOne, JoinColumn,
 } from 'typeorm';
-import { Submission } from '../submission/entities/submission.entity';
+import { Submission } from './submission.entity';
 
 @Entity('submission_files')
 export class SubmissionFile {

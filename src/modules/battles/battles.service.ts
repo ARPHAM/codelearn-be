@@ -1,4 +1,4 @@
-﻿import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../user/entities/user.entity';
@@ -7,7 +7,7 @@ import { User } from '../user/entities/user.entity';
 export class BattlesService {
   constructor(@InjectRepository(User) private userRepo: Repository<User>) {}
 
-  async challenge(dto: { opponentId: number; duration: number; topic: string }, challenger: User) {
+  async challenge(dto: { opponentId: string; duration: number; topic: string }, challenger: User) {
     const opponent = await this.userRepo.findOne({ where: { id: dto.opponentId } });
     if (!opponent) throw new NotFoundException('Doi thu khong ton tai');
     const battleId = Math.floor(Math.random() * 10000);

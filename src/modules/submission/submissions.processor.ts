@@ -151,7 +151,7 @@ export class SubmissionsProcessor {
       try {
         await this.submissionRepo.update(submissionId, {
           status: execResult.status,
-          compileOutput: execResult.stderr,
+          errorMessage: execResult.stderr,
           runtime: execResult.executionTime,
         });
 

@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
-import { ProblemVersion } from '../../problems/entities/problem-version.entity';
-import { Language } from '../../problems/entities/language.entity';
+import { ProblemVersion } from '../../problem/entities/problem-version.entity';
+import { Language } from '../../problem/entities/language.entity';
 import { SubmissionStatus } from '../../../shared/enums/submission-status.enum';
 
 @Entity('run_executions')
@@ -9,8 +9,8 @@ export class RunExecution {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'user_id' })
-  userId: number;
+  @Column({ name: 'user_id', type: 'uuid' })
+  userId: string;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'user_id' })

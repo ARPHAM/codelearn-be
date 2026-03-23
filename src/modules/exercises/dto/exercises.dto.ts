@@ -1,4 +1,4 @@
-﻿import {
+import {
   IsString, IsEnum, IsArray, IsNumber, IsOptional, IsBoolean, ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -18,7 +18,7 @@ export class CreateExerciseDto {
   @ApiPropertyOptional({ type: [String] }) @IsArray() @IsOptional() tags?: string[];
   @ApiPropertyOptional({ type: [String] }) @IsArray() @IsOptional() languages?: string[];
   @ApiPropertyOptional() @IsNumber() @IsOptional() score?: number;
-  @ApiPropertyOptional() @IsNumber() @IsOptional() courseId?: number;
+  @ApiPropertyOptional() @IsString() @IsOptional() courseId?: string;
   @ApiPropertyOptional({ type: [TestCaseDto] }) @IsArray() @ValidateNested({ each: true }) @Type(() => TestCaseDto) @IsOptional() testCases?: TestCaseDto[];
   @ApiPropertyOptional({ type: [String] }) @IsArray() @IsOptional() hints?: string[];
 }
@@ -31,7 +31,7 @@ export class UpdateExerciseDto {
 }
 
 export class ListExercisesDto {
-  @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsNumber() courseId?: number;
+  @ApiPropertyOptional() @IsOptional() @Type(() => String) @IsString() courseId?: string;
   @ApiPropertyOptional({ enum: Difficulty }) @IsEnum(Difficulty) @IsOptional() difficulty?: Difficulty;
   @ApiPropertyOptional() @IsString() @IsOptional() tag?: string;
 }

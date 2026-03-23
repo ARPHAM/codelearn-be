@@ -5,36 +5,49 @@ import { BullModule } from '@nestjs/bull';
 
 // Feature modules
 import { AuthModule } from './modules/auth/auth.module';
-// import { CoursesModule } from './modules/courses/courses.module';
-// import { ExercisesModule } from './modules/exercises/exercises.module';
-// import { SubmissionsModule } from './modules/submissions/submissions.module';
-// import { PlagiarismModule } from './modules/plagiarism/plagiarism.module';
-// import { AnalyticsModule } from './modules/analytics/analytics.module';
-// import { LearningPathModule } from './modules/learning-path/learning-path.module';
-// import { BattlesModule } from './modules/battles/battles.module';
-// import { PairRoomsModule } from './modules/pair-rooms/pair-rooms.module';
-// import { ExamsModule } from './modules/exams/exams.module';
-// import { AdminModule } from './modules/admin/admin.module';
-// import { ExecutionModule } from './modules/execution/execution.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { BattlesModule } from './modules/battles/battles.module';
+import { CoursesModule } from './modules/course/courses.module';
+import { ExamsModule } from './modules/exam/exams.module';
+import { ExecutionModule } from './modules/execution/execution.module';
+import { ExercisesModule } from './modules/exercises/exercises.module';
+import { LearningPathModule } from './modules/learning-path/learning-path.module';
+import { PairRoomsModule } from './modules/pair-rooms/pair-rooms.module';
+import { PlagiarismModule } from './modules/plagiarism/plagiarism.module';
+import { RunsModule } from './modules/runs/runs.module';
+import { SubmissionsModule } from './modules/submission/submissions.module';
 
 // Entities
 import { User } from './modules/user/entities/user.entity';
-// import { Course, Enrollment } from './modules/courses/entities/course.entity';
-// import { Exercise, TestCase } from './modules/exercises/entities/exercise.entity';
-// import { Submission } from './modules/submissions/entities/submission.entity';
-// import { SubmissionResult } from './modules/submissions/entities/submission-result.entity';
-// import { Problem } from './modules/problems/entities/problem.entity';
-// import { ProblemVersion } from './modules/problems/entities/problem-version.entity';
-// import { ProblemExample } from './modules/problems/entities/problem-example.entity';
-// import { Testcase } from './modules/problems/entities/testcase.entity';
-// import { Language } from './modules/problems/entities/language.entity';
-// import { ProblemLanguage } from './modules/problems/entities/problem-language.entity';
-// import { ProblemStats } from './modules/problems/entities/problem-stats.entity';
-// import { Tag } from './modules/problems/entities/tag.entity';
-// import { ProblemTag } from './modules/problems/entities/problem-tag.entity';
-// import { Exam } from './modules/exams/entities/exam.entity';
-// import { ExamProblem } from './modules/exams/entities/exam-problem.entity';
-// import { RunExecution } from './modules/runs/entities/run-execution.entity';
+import { AssignmentProblem } from './modules/assignment/entities/assignment-problem.entity';
+import { Assignment } from './modules/assignment/entities/assignment.entity';
+import { BankItem } from './modules/bank/entities/bank-item.entity';
+import { QuestionBank } from './modules/bank/entities/question-bank.entity';
+import { Course } from './modules/course/entities/course.entity';
+import { Enrollment } from './modules/course/entities/enrollment.entity';
+import { ExamAttempt } from './modules/exam/entities/exam-attempt.entity';
+import { ExamLog } from './modules/exam/entities/exam-log.entity';
+import { ExamProblem } from './modules/exam/entities/exam-problem.entity';
+import { Exam } from './modules/exam/entities/exam.entity';
+import { ExecutionJob } from './modules/execution/entites/execution-job.entity';
+import { SubmissionResult } from './modules/execution/entites/submission-result.entity';
+import { Exercise, TestCase } from './modules/exercises/entities/exercise.entity';
+import { Language } from './modules/problem/entities/language.entity';
+import { ProblemLanguageFile } from './modules/problem/entities/problem-language-file.entity';
+import { ProblemVersion } from './modules/problem/entities/problem-version.entity';
+import { Problem } from './modules/problem/entities/problem.entity';
+import { Testcase as ProblemTestcase } from './modules/problem/entities/testcase.entity';
+import { RunExecution } from './modules/runs/entities/run-execution.entity';
+import { SubmissionFile } from './modules/submission/entities/submission-file.entity';
+import { Submission } from './modules/submission/entities/submission.entity';
+
+const ALL_ENTITIES = [
+  User, AssignmentProblem, Assignment, BankItem, QuestionBank, Course, Enrollment,
+  ExamAttempt, ExamLog, ExamProblem, Exam, ExecutionJob, SubmissionResult,
+  Exercise, TestCase, Language, ProblemLanguageFile, ProblemVersion, Problem, ProblemTestcase,
+  RunExecution, SubmissionFile, Submission
+];
 
 @Module({
   imports: [
@@ -52,8 +65,7 @@ import { User } from './modules/user/entities/user.entity';
           return {
             type: 'postgres',
             url: databaseUrl,
-            // entities: [User, Course, Enrollment, Exercise, TestCase, Submission, SubmissionResult, Problem, ProblemVersion, ProblemExample, Testcase, Language, ProblemLanguage, ProblemStats, Tag, ProblemTag, Exam, ExamProblem, RunExecution],
-            entities: [User],
+            entities: ALL_ENTITIES,
             synchronize: true,
             ssl: {
               rejectUnauthorized: false,
@@ -69,8 +81,7 @@ import { User } from './modules/user/entities/user.entity';
           username: cfg.get('DB_USERNAME'),
           password: cfg.get('DB_PASSWORD'),
           database: cfg.get('DB_NAME'),
-          // entities: [User, Course, Enrollment, Exercise, TestCase, Submission, SubmissionResult, Problem, ProblemVersion, ProblemExample, Testcase, Language, ProblemLanguage, ProblemStats, Tag, ProblemTag, Exam, ExamProblem, RunExecution],
-          entities: [User],
+          entities: ALL_ENTITIES,
           synchronize: cfg.get<string>('DB_SYNCHRONIZE') === 'true',
           logging: cfg.get<string>('DB_LOGGING') === 'true',
         };
@@ -90,17 +101,19 @@ import { User } from './modules/user/entities/user.entity';
 
     // Feature modules
     AuthModule,
-    // CoursesModule,
-    // ExercisesModule,
-    // SubmissionsModule,
-    // PlagiarismModule,
-    // AnalyticsModule,
-    // LearningPathModule,
-    // BattlesModule,
-    // PairRoomsModule,
-    // ExamsModule,
-    // AdminModule,
-    // ExecutionModule,
+    AdminModule,
+    AnalyticsModule,
+    BattlesModule,
+    CoursesModule,
+    ExamsModule,
+    ExecutionModule,
+    ExercisesModule,
+    LearningPathModule,
+    PairRoomsModule,
+    PlagiarismModule,
+    RunsModule,
+    SubmissionsModule,
   ],
 })
 export class AppModule {}
+

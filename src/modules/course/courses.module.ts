@@ -1,8 +1,9 @@
-﻿import { Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CoursesController } from './courses.controller';
 import { CoursesService } from './courses.service';
-import { Course, Enrollment } from './entities/course.entity';
+import { Course } from './entities/course.entity';
+import { Enrollment } from './entities/enrollment.entity';
 import { User } from '../user/entities/user.entity';
 
 @Module({

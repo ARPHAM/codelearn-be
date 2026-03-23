@@ -2,7 +2,7 @@ import {
   Entity, PrimaryGeneratedColumn, Column,
   ManyToOne, JoinColumn, Index,
 } from 'typeorm';
-import { Course } from '../course/entities/course.entity';
+import { Course } from '../../course/entities/course.entity';
 
 @Entity('assignments')
 export class Assignment {

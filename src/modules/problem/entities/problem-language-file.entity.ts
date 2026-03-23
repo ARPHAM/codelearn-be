@@ -2,8 +2,8 @@ import {
   Entity, PrimaryGeneratedColumn, Column,
   ManyToOne, JoinColumn, Index,
 } from 'typeorm';
-import { Problem } from '../problem/entities/problem.entity';
-import { Language } from '../language/entities/language.entity';
+import { Problem } from './problem.entity';
+import { Language } from './language.entity';
 
 @Entity('problem_language_files')
 @Index(['problem', 'language'])

@@ -1,4 +1,4 @@
-﻿import {
+import {
   Controller, Get, Post, Param, Body, Query, UseGuards, ParseIntPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -28,7 +28,7 @@ export class CoursesController {
   @UseGuards(RolesGuard)
   @Roles(Role.LECTURER, Role.ADMIN)
   @ApiOperation({ summary: 'Lay danh sach sinh vien trong khoa hoc' })
-  getStudents(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: User) {
+  getStudents(@Param('id') id: string, @CurrentUser() user: User) {
     return this.coursesService.getStudents(id, user);
   }
 
@@ -36,7 +36,7 @@ export class CoursesController {
   @UseGuards(RolesGuard)
   @Roles(Role.STUDENT)
   @ApiOperation({ summary: 'Dang ky khoa hoc cho sinh vien' })
-  enroll(@Param('id', ParseIntPipe) id: number, @Body() _dto: EnrollDto, @CurrentUser() user: User) {
+  enroll(@Param('id') id: string, @Body() _dto: EnrollDto, @CurrentUser() user: User) {
     return this.coursesService.enrollStudent(id, user);
   }
 }

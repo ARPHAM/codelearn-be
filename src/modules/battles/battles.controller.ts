@@ -1,4 +1,4 @@
-﻿import {
+import {
   Controller, Get, Post, Param, Body, Query, UseGuards, ParseIntPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -14,7 +14,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 class ChallengeDto {
-  @ApiProperty() @IsNumber() @Type(() => Number) opponentId: number;
+  @ApiProperty() @IsString() @Type(() => String) opponentId: string;
   @ApiProperty({ enum: [15, 30, 45] }) @IsNumber() duration: number;
   @ApiProperty() @IsString() topic: string;
 }

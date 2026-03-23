@@ -7,8 +7,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Submission } from './entities/submission.entity';
 import { User } from '../user/entities/user.entity';
-import { ProblemVersion } from '../problems/entities/problem-version.entity';
-import { Language } from '../problems/entities/language.entity';
+import { ProblemVersion } from '../problem/entities/problem-version.entity';
+import { Language } from '../problem/entities/language.entity';
 import { CreateSubmissionDto, UpdateScoreDto, ListSubmissionsDto } from './dto/submissions.dto';
 import { SubmissionStatus } from '../../shared/enums/submission-status.enum';
 import { Role } from '../../common/enums/role.enum';
@@ -36,9 +36,9 @@ export class SubmissionsService {
     }
 
     const submission = this.submissionRepo.create({
-      problemVersionId: dto.problemVersionId,
-      userId: student.id,
-      languageId: language.id,
+      problemVersion: { id: dto.problemVersionId },
+      user: { id: student.id },
+      language: { id: language.id },
 
       code: JSON.stringify({
         mainFile: dto.mainFile,
@@ -68,13 +68,13 @@ export class SubmissionsService {
   }
 
   async getResult(id: string, currentUser: User) {
-    const sub = await this.submissionRepo.findOne({ where: { id } });
+    const sub = await this.submissionRepo.findOne({ where: { id }, relations: ['user'] });
     if (!sub) throw new NotFoundException('Submission khong ton tai');
-    if (sub.userId !== currentUser.id && currentUser.role === Role.STUDENT) {
+    if (sub.user?.id !== currentUser.id && currentUser.role === Role.STUDENT) {
       throw new ForbiddenException('Khong co quyen xem submission nay');
     }
     return { status: sub.status, score: sub.score, passed: 0, total: 0,
-      timeCpu: sub.runtime ? sub.runtime / 1000 + 's' : null, memoryMb: sub.memory, testResults: [], compileOutput: sub.compileOutput };
+      timeCpu: sub.runtime ? sub.runtime / 1000 + 's' : null, memoryMb: sub.memory, testResults: [], compileOutput: sub.errorMessage };
   }
 
   async getByExercise(problemVersionId: string, query: ListSubmissionsDto) {
@@ -86,7 +86,7 @@ export class SubmissionsService {
     const [submissions, total] = await qb.getManyAndCount();
     return {
       submissions: submissions.map((s) => ({
-        id: s.id, userId: s.userId, studentName: (s as any).user?.fullName,
+        id: s.id, userId: s.user?.id, studentName: s.user?.fullName,
         score: s.score, status: s.status, submittedAt: s.createdAt,
       })), total,
     };

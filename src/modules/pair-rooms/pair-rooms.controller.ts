@@ -1,4 +1,4 @@
-﻿import { Controller, Post, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PairRoomsService } from './pair-rooms.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -15,7 +15,7 @@ class CreateRoomDto {
   @ApiProperty() @IsNumber() @Type(() => Number) exerciseId: number;
 }
 class InviteDto {
-  @ApiProperty({ type: [Number] }) @IsArray() inviteeIds: number[];
+  @ApiProperty({ type: [String] }) @IsArray() inviteeIds: string[];
 }
 
 @ApiTags('Pair Programming')

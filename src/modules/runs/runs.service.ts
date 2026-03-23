@@ -5,9 +5,9 @@ import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
 import { RunExecution } from './entities/run-execution.entity';
 import { CreateRunDto } from './dto/create-run.dto';
-import { ProblemVersion } from '../problems/entities/problem-version.entity';
-import { Problem } from '../problems/entities/problem.entity';
-import { ProblemExample } from '../problems/entities/problem-example.entity';
+import { ProblemVersion } from '../problem/entities/problem-version.entity';
+import { Problem } from '../problem/entities/problem.entity';
+import { Testcase } from '../problem/entities/testcase.entity';
 import { SubmissionStatus } from '../../shared/enums/submission-status.enum';
 
 @Injectable()
@@ -17,12 +17,12 @@ export class RunsService {
     private runExecutionRepository: Repository<RunExecution>,
     @InjectRepository(ProblemVersion)
     private problemVersionRepository: Repository<ProblemVersion>,
-    @InjectRepository(ProblemExample)
-    private problemExampleRepository: Repository<ProblemExample>,
+    @InjectRepository(Testcase)
+    private testcaseRepository: Repository<Testcase>,
     @InjectQueue('code-execution') private codeQueue: Queue,
   ) {}
 
-  async executeRun(userId: number, dto: CreateRunDto) {
+  async executeRun(userId: string, dto: CreateRunDto) {
     const { problemVersionId, languageId, code, input } = dto;
 
     const problemVersion = await this.problemVersionRepository.findOne({
@@ -37,14 +37,15 @@ export class RunsService {
     const problem = problemVersion.problem;
 
     const codeBuffer = Buffer.from(code);
-    if (codeBuffer.length > problem.maxCodeSize) {
-      throw new BadRequestException(`Code size exceeds maximum limit of ${problem.maxCodeSize} bytes`);
+    const maxCodeSize = (problem as any).maxCodeSize || 50000;
+    if (codeBuffer.length > maxCodeSize) {
+      throw new BadRequestException(`Code size exceeds maximum limit of ${maxCodeSize} bytes`);
     }
 
     let runInput = input;
     if (!runInput) {
-      const firstExample = await this.problemExampleRepository.findOne({
-        where: { problemVersionId },
+      const firstExample = await this.testcaseRepository.findOne({
+        where: { problemVersion: { id: problemVersionId }, isHidden: false },
         order: { order: 'ASC' },
       });
       runInput = firstExample?.input || '';
@@ -67,8 +68,8 @@ export class RunsService {
       code,
       input: runInput,
       problemVersionId,
-      timeLimit: problem.timeLimit,
-      memoryLimit: problem.memoryLimit
+      timeLimit: (problem as any).timeLimit || 5000,
+      memoryLimit: (problem as any).memoryLimit || 256
     });
 
     return runExecution;

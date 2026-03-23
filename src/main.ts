@@ -50,7 +50,6 @@ async function bootstrap() {
       .addTag('Learning Path & AI')
       .addTag('Pair Programming')
       .addTag('Code Battle')
-      .addTag('Admin — Sandbox')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);

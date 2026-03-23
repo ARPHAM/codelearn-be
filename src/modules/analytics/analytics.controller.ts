@@ -20,13 +20,13 @@ export class AnalyticsController {
   @UseGuards(RolesGuard)
   @Roles(Role.LECTURER, Role.ADMIN)
   @ApiOperation({ summary: 'Dashboard tổng quan khoá học' })
-  getCourseAnalytics(@Param('courseId', ParseIntPipe) courseId: number) {
+  getCourseAnalytics(@Param('courseId') courseId: string) {
     return this.analyticsService.getCourseAnalytics(courseId);
   }
 
   @Get('student/:studentId')
   @ApiOperation({ summary: 'Thống kê cá nhân sinh viên' })
-  getStudentAnalytics(@Param('studentId', ParseIntPipe) studentId: number) {
+  getStudentAnalytics(@Param('studentId') studentId: string) {
     return this.analyticsService.getStudentAnalytics(studentId);
   }
 }

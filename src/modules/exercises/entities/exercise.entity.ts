@@ -1,4 +1,4 @@
-﻿import {
+import {
   Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, OneToMany,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
@@ -34,15 +34,15 @@ export class Exercise {
   @Column({ default: 'draft' })
   status: string;
 
-  @Column({ name: 'course_id', nullable: true })
-  courseId: number;
+  @Column({ name: 'course_id', type: 'uuid', nullable: true })
+  courseId: string;
 
   @ManyToOne(() => Course, { nullable: true })
   @JoinColumn({ name: 'course_id' })
   course: Course;
 
-  @Column({ name: 'creator_id' })
-  creatorId: number;
+  @Column({ name: 'creator_id', type: 'uuid' })
+  creatorId: string;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'creator_id' })

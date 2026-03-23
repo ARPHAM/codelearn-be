@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { RunExecution } from './entities/run-execution.entity';
-import { Language } from '../problems/entities/language.entity';
+import { Language } from '../problem/entities/language.entity';
 import { SubmissionStatus } from '../../shared/enums/submission-status.enum';
 import { languageConfig } from '../../config/language.config';
 

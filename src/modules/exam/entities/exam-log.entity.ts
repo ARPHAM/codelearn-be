@@ -2,7 +2,7 @@ import {
   Entity, PrimaryGeneratedColumn, Column,
   ManyToOne, JoinColumn,
 } from 'typeorm';
-import { ExamAttempt } from '../exam/entities/exam-attempt.entity';
+import { ExamAttempt } from './exam-attempt.entity';
 
 @Entity('exam_logs')
 export class ExamLog {
