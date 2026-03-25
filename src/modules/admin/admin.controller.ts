@@ -1,4 +1,4 @@
-﻿import {
+import {
   Controller, Get, Post, Put, Patch, Delete, Param, Body, Query, UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -42,4 +42,16 @@ export class AdminController {
 
   @Patch('languages/:id') @ApiOperation({ summary: 'Bat/tat hoac cap nhat cau hinh ngon ngu' })
   updateLanguage(@Param('id') id: string, @Body() dto: any) { return this.adminService.updateLanguage(+id, dto); }
+
+  @Get('users/lecturers')
+  @ApiOperation({ summary: 'Liet ke tat ca giang vien' })
+  listLecturers(@Query() query: any) { 
+    return this.adminService.listLecturers(query); 
+  }
+
+  @Get('users/students') 
+  @ApiOperation({ summary: 'Liet ke tat ca sinh vien' })
+  listStudents(@Query() query: any) { 
+    return this.adminService.listStudents(query); 
+  }
 }

@@ -78,7 +78,7 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     const existing = await this.userRepo.findOne({
-      where: { email: dto.email },
+      where: { email: dto.email, role: dto.role },
     });
 
     if (existing) {

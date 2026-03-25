@@ -37,8 +37,8 @@ export class RegisterDto {
   @MinLength(8)
   password: string;
 
-  @ApiProperty({ enum: [Role.STUDENT, Role.LECTURER] })
-  @IsEnum([Role.STUDENT, Role.LECTURER])
+  @ApiProperty({ enum: [Role.STUDENT, Role.LECTURER, Role.ADMIN] })
+  @IsEnum([Role.STUDENT, Role.LECTURER, Role.ADMIN])
   role: Role;
 
   @ApiPropertyOptional()
