@@ -66,33 +66,33 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
-  // @Post('logout')
-  // @HttpCode(HttpStatus.OK)
-  // @ApiOperation({ summary: 'Huỷ phiên đăng nhập' })
-  // logout(
-  //   @Res({ passthrough: true }) res: Response,
-  // ) {
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Huỷ phiên đăng nhập' })
+  logout(
+    @Res({ passthrough: true }) res: Response,
+  ) {
 
-  //   const isProd = process.env.NODE_ENV === 'production';
+    const isProd = process.env.NODE_ENV === 'production';
 
-  //   res.clearCookie('accessToken', {
-  //     httpOnly: true,
-  //     secure: isProd,
-  //     sameSite: isProd ? 'none' : 'lax',
-  //     path: '/',
-  //   });
+    res.clearCookie('accessToken', {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      path: '/',
+    });
 
-  //   res.clearCookie('refreshToken', {
-  //     httpOnly: true,
-  //     secure: isProd,
-  //     sameSite: isProd ? 'none' : 'lax',
-  //     path: '/',
-  //   });
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      path: '/',
+    });
 
-  //   return {
-  //     message: 'Da dang xuat thanh cong',
-  //   };
-  // }
+    return {
+      message: 'Da dang xuat thanh cong',
+    };
+  }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
