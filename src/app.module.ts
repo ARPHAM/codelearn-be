@@ -17,6 +17,8 @@ import { PairRoomsModule } from './modules/pair-rooms/pair-rooms.module';
 import { PlagiarismModule } from './modules/plagiarism/plagiarism.module';
 import { RunsModule } from './modules/runs/runs.module';
 import { SubmissionsModule } from './modules/submission/submissions.module';
+import { WorkspaceModule } from './modules/workspace/workspace.module';
+import { RoomModule } from './modules/room/room.module';
 
 // Entities
 import { User } from './modules/user/entities/user.entity';
@@ -41,12 +43,17 @@ import { Testcase as ProblemTestcase } from './modules/problem/entities/testcase
 import { RunExecution } from './modules/runs/entities/run-execution.entity';
 import { SubmissionFile } from './modules/submission/entities/submission-file.entity';
 import { Submission } from './modules/submission/entities/submission.entity';
+import { UserWorkspace } from './modules/workspace/entities/user-workspace.entity';
+import { WorkspaceFile } from './modules/workspace/entities/workspace-file.entity';
+import { Room } from './modules/room/entities/room.entity';
+import { RoomParticipant } from './modules/room/entities/room-participant.entity';
 
 const ALL_ENTITIES = [
   User, AssignmentProblem, Assignment, BankItem, QuestionBank, Course, Enrollment,
   ExamAttempt, ExamLog, ExamProblem, Exam, ExecutionJob, SubmissionResult,
   Exercise, TestCase, Language, ProblemLanguageFile, ProblemVersion, Problem, ProblemTestcase,
-  RunExecution, SubmissionFile, Submission
+  RunExecution, SubmissionFile, Submission,
+  UserWorkspace, WorkspaceFile, Room, RoomParticipant
 ];
 
 @Module({
@@ -113,6 +120,8 @@ const ALL_ENTITIES = [
     PlagiarismModule,
     RunsModule,
     SubmissionsModule,
+    WorkspaceModule,
+    RoomModule,
   ],
 })
 export class AppModule {}
