@@ -15,8 +15,16 @@ export class RoomController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new meeting room' })
-  createRoom(@CurrentUser() user: User, @Body() dto: CreateRoomDto) {
-    return this.roomService.createRoom(user.id, dto);
+  async createRoom(@CurrentUser() user: User, @Body() dto: CreateRoomDto) {
+    const room = await this.roomService.createRoom(user.id, dto);
+    return {
+      id: room.id,
+      name: room.name,
+      description: room.description,
+      type: room.type,
+      createdBy: room.createdBy,
+      createdAt: room.createdAt,
+    };
   }
 
   @Post(':id/join')
@@ -39,5 +47,11 @@ export class RoomController {
   @ApiOperation({ summary: 'Get list of participants in a room' })
   getParticipants(@Param('id') id: string) {
     return this.roomService.getParticipants(id);
+  }
+
+  @Get(':id/session')
+  @ApiOperation({ summary: 'Get current session state of a room' })
+  getSession(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.roomService.getRoomSession(id, user.id);
   }
 }

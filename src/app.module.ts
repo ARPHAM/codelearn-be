@@ -47,13 +47,14 @@ import { UserWorkspace } from './modules/workspace/entities/user-workspace.entit
 import { WorkspaceFile } from './modules/workspace/entities/workspace-file.entity';
 import { Room } from './modules/room/entities/room.entity';
 import { RoomParticipant } from './modules/room/entities/room-participant.entity';
+import { RoomSession } from './modules/room/entities/room-session.entity';
 
 const ALL_ENTITIES = [
   User, AssignmentProblem, Assignment, BankItem, QuestionBank, Course, Enrollment,
   ExamAttempt, ExamLog, ExamProblem, Exam, ExecutionJob, SubmissionResult,
   Exercise, TestCase, Language, ProblemLanguageFile, ProblemVersion, Problem, ProblemTestcase,
   RunExecution, SubmissionFile, Submission,
-  UserWorkspace, WorkspaceFile, Room, RoomParticipant
+  UserWorkspace, WorkspaceFile, Room, RoomParticipant, RoomSession
 ];
 
 @Module({

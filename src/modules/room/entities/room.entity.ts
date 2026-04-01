@@ -1,13 +1,24 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 
+export enum RoomType {
+  MEETING = 'MEETING',
+  CODE = 'CODE',
+}
+
 @Entity('rooms')
 export class Room {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
-  type: string;
+  @Column({ length: 100 })
+  name: string;
+
+  @Column({ nullable: true })
+  description: string;
+
+  @Column({ type: 'enum', enum: RoomType, default: RoomType.MEETING })
+  type: RoomType;
 
   @Column({ name: 'problem_id', nullable: true })
   problemId: number;

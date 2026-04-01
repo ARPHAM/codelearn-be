@@ -1,9 +1,10 @@
-import { Entity, Column, CreateDateColumn, ManyToOne, JoinColumn, PrimaryColumn } from 'typeorm';
+import { Entity, Column, CreateDateColumn, ManyToOne, JoinColumn, PrimaryColumn, Unique } from 'typeorm';
 import { Room } from './room.entity';
 import { User } from '../../user/entities/user.entity';
 import { UserWorkspace } from '../../workspace/entities/user-workspace.entity';
 
 @Entity('room_participants')
+@Unique(['roomId', 'userId'])
 export class RoomParticipant {
   @PrimaryColumn({ name: 'room_id' })
   roomId: string;

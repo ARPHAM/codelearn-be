@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, EntityManager } from 'typeorm';
 import { UserWorkspace } from './entities/user-workspace.entity';
 import { WorkspaceFile } from './entities/workspace-file.entity';
 import { CreateUserWorkspaceDto, UpdateUserWorkspaceDto, CreateWorkspaceFileDto, UpdateWorkspaceFileDto } from './dtos/workspace.dto';
@@ -15,12 +15,13 @@ export class WorkspaceService {
   ) {}
 
   // Workspace Operations
-  async createWorkspace(userId: string, dto: CreateUserWorkspaceDto): Promise<UserWorkspace> {
-    const workspace = this.workspaceRepo.create({
+  async createWorkspace(userId: string, dto: CreateUserWorkspaceDto, manager?: EntityManager): Promise<UserWorkspace> {
+    const repo = manager ? manager.getRepository(UserWorkspace) : this.workspaceRepo;
+    const workspace = repo.create({
       ...dto,
       userId,
     });
-    return this.workspaceRepo.save(workspace);
+    return repo.save(workspace);
   }
 
   async findAllWorkspaces(userId: string): Promise<UserWorkspace[]> {
