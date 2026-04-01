@@ -10,6 +10,8 @@ import { WorkspaceModule } from '../workspace/workspace.module';
 import { AuthModule } from '../auth/auth.module';
 import { RoomGateway } from './room.gateway';
 import { RoomRuntimeStore } from './room-runtime.store';
+import { RoomCleanupService } from './room-cleanup.service';
+
 
 @Module({
   imports: [
@@ -19,7 +21,8 @@ import { RoomRuntimeStore } from './room-runtime.store';
     ConfigModule,
   ],
   controllers: [RoomController],
-  providers: [RoomService, RoomGateway, RoomRuntimeStore],
-  exports: [RoomService, RoomGateway, RoomRuntimeStore],
+  providers: [RoomService, RoomGateway, RoomRuntimeStore, RoomCleanupService],
+  exports: [RoomService, RoomGateway, RoomRuntimeStore, RoomCleanupService],
 })
+
 export class RoomModule {}

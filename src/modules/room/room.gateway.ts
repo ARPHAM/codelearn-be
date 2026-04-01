@@ -32,7 +32,8 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
   server: Server;
 
   // In-memory room state: roomId -> RoomState
-  private roomState = new Map<string, RoomState>();
+  public readonly roomState = new Map<string, RoomState>();
+
 
   constructor(
     private readonly jwtService: JwtService,
@@ -169,13 +170,26 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // Auto-add user as participant if not already (creates workspace for guests)
       participant = await this.roomService.ensureParticipant(roomId, userId);
     } catch (error) {
+      client.emit('error', { message: error.message || 'Failed to join room' });
       return; // Room not found or full
+    }
+
+    let state = this.roomState.get(roomId);
+
+    // CRITICAL: Block non-host users if no host is online
+    if (participant.role !== 'HOST') {
+      if (!state || state.hostSockets.size === 0) {
+        client.emit('error', { 
+          message: 'Room is strictly managed by host. Please wait for host to join online.',
+          code: 'HOST_OFFLINE'
+        });
+        return;
+      }
     }
 
     client.join(roomId);
     client.data.joinedRooms.add(roomId);
 
-    let state = this.roomState.get(roomId);
     if (!state) {
       state = { users: new Map(), hostSockets: new Set() };
       this.roomState.set(roomId, state);

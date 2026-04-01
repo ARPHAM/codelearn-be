@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bull';
+import { ScheduleModule } from '@nestjs/schedule';
+
 
 // Feature modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -61,6 +63,10 @@ const ALL_ENTITIES = [
   imports: [
     // Config
     ConfigModule.forRoot({ isGlobal: true }),
+
+    // Schedule
+    ScheduleModule.forRoot(),
+
 
     // Database
     TypeOrmModule.forRootAsync({
