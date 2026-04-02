@@ -34,6 +34,7 @@ export class RoomService {
       // Create a personal workspace for the creator explicitly for this room
       const workspace = await this.workspaceService.createWorkspace(userId, {
         name: `Workspace for ${savedRoom.name}`,
+        roomId: savedRoom.id,
       }, manager);
 
       // Add creator as the first participant
@@ -58,6 +59,11 @@ export class RoomService {
   }
 
   async joinRoom(roomId: string, userId: string, dto: JoinRoomDto): Promise<RoomParticipant> {
+    if (!dto.workspaceId) {
+      // If no workspace provided, use the "ensureParticipant" logic to auto-create/find one
+      return this.ensureParticipant(roomId, userId);
+    }
+
     const room = await this.findRoomById(roomId);
 
     // Validate workspace ownership
@@ -73,9 +79,7 @@ export class RoomService {
     }
 
     // Check capacity
-    const count = await this.participantRepo.createQueryBuilder('participant')
-      .where('participant.room_id = :roomId', { roomId })
-      .getCount();
+    const count = await this.participantRepo.count({ where: { roomId } });
     if (count >= room.maxParticipants) {
       throw new BadRequestException('Room is full');
     }
@@ -156,6 +160,7 @@ export class RoomService {
     if (!workspace) {
       workspace = await this.workspaceService.createWorkspace(userId, {
         name: `Workspace for ${room.name}`,
+        roomId,
       });
     }
 
@@ -166,6 +171,14 @@ export class RoomService {
       role: room.createdBy === userId ? 'HOST' : 'GUEST',
     });
     return this.participantRepo.save(participant);
+  }
+
+  async getRoomIdByWorkspace(workspaceId: string): Promise<string | null> {
+    const participant = await this.participantRepo.findOne({
+      where: { workspaceId },
+      select: ['roomId'],
+    });
+    return participant?.roomId || null;
   }
 
 

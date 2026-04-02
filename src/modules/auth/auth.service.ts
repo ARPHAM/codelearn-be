@@ -1,4 +1,4 @@
-﻿import {
+import {
   Injectable,
   UnauthorizedException,
   ConflictException,
@@ -168,6 +168,7 @@ export class AuthService {
     }
 
     return {
+        id: user.id,
         name: user.fullName,
         role: user.role,
         email: user.email,

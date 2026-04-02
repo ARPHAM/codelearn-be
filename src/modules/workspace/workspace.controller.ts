@@ -58,11 +58,23 @@ export class WorkspaceController {
   @Get('files/:id')
   @ApiOperation({ summary: 'Get specific file details' })
   findFileById(@Param('id') id: string, @CurrentUser() user: User) {
-    return this.workspaceService.findFileById(id, user.id);
+    return this.workspaceService.findFileById(id, user.id, true);
+  }
+
+  @Post('workspaces/:workspaceId/files')
+  @ApiOperation({ summary: 'Create a new file in a workspace' })
+  createFileInWorkspace(
+    @Param('workspaceId') workspaceId: string,
+    @CurrentUser() user: User,
+    @Body() dto: CreateWorkspaceFileDto,
+  ) {
+    // Override workspaceId from body if provided in param
+    dto.workspaceId = workspaceId;
+    return this.workspaceService.createFile(user.id, dto);
   }
 
   @Post('files')
-  @ApiOperation({ summary: 'Create a new file in a workspace' })
+  @ApiOperation({ summary: 'Create a new file in a workspace (Legacy)' })
   createFile(@CurrentUser() user: User, @Body() dto: CreateWorkspaceFileDto) {
     return this.workspaceService.createFile(user.id, dto);
   }
@@ -77,8 +89,18 @@ export class WorkspaceController {
     return this.workspaceService.updateFile(id, user.id, dto);
   }
 
+  @Delete('workspaces/:workspaceId/files/*')
+  @ApiOperation({ summary: 'Delete a file by path' })
+  deleteFileByPath(
+    @Param('workspaceId') workspaceId: string,
+    @Param('0') filePath: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.workspaceService.deleteFileByPath(user.id, workspaceId, filePath);
+  }
+
   @Delete('files/:id')
-  @ApiOperation({ summary: 'Delete file' })
+  @ApiOperation({ summary: 'Delete file by ID (Legacy)' })
   deleteFile(@Param('id') id: string, @CurrentUser() user: User) {
     return this.workspaceService.deleteFile(id, user.id);
   }

@@ -12,6 +12,11 @@ export class CreateUserWorkspaceDto {
   @IsEnum(WorkspaceSource)
   @IsOptional()
   source?: WorkspaceSource;
+
+  @ApiProperty({ required: false })
+  @IsUUID()
+  @IsOptional()
+  roomId?: string;
 }
 
 export class UpdateUserWorkspaceDto {
@@ -22,17 +27,17 @@ export class UpdateUserWorkspaceDto {
 }
 
 export class CreateWorkspaceFileDto {
-  @ApiProperty()
+  @ApiProperty({ required: false })
   @IsUUID()
-  @IsNotEmpty()
-  workspaceId: string;
+  @IsOptional()
+  workspaceId?: string;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  path: string;
+  filePath: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
   content?: string;

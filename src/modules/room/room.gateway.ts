@@ -13,6 +13,8 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { RoomService } from './room.service';
 import { RoomRuntimeStore } from './room-runtime.store';
+import { WorkspaceService, WorkspaceEventType } from '../workspace/workspace.service';
+import { OnModuleInit } from '@nestjs/common';
 
 interface RoomState {
   users: Map<string, Set<string>>; // userId -> Set of socketIds
@@ -27,7 +29,7 @@ interface RoomState {
     credentials: true,
   },
 })
-export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit {
   @WebSocketServer()
   server: Server;
 
@@ -40,7 +42,23 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly configService: ConfigService,
     private readonly roomService: RoomService,
     private readonly runtimeStore: RoomRuntimeStore,
+    private readonly workspaceService: WorkspaceService,
   ) {}
+
+  onModuleInit() {
+    // Subscribe to workspace file events to broadcast them to the room
+    this.workspaceService.fileEvents.subscribe(async (event) => {
+      const roomId = await this.roomService.getRoomIdByWorkspace(event.workspaceId);
+      if (roomId) {
+        const socketEvent = event.type === WorkspaceEventType.FILE_CREATED ? 'file_create' : 'file_delete';
+        this.server.to(roomId).emit(socketEvent, {
+          userId: event.userId,
+          workspaceId: event.workspaceId,
+          ...event.payload,
+        });
+      }
+    });
+  }
 
   async handleConnection(client: Socket) {
     try {
@@ -269,6 +287,44 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       userId,
       filePath,
       content,
+    });
+  }
+
+  @SubscribeMessage('cursor_move')
+  async handleCursorMove(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: any,
+  ) {
+    const userId = client.data.user?.userId;
+    if (!payload?.roomId || !userId) return;
+
+    // Fast boolean check
+    const isParticipant = await this.roomService.isParticipant(payload.roomId, userId);
+    if (!isParticipant) return;
+
+    // Broadcast to others in the room
+    client.to(payload.roomId).emit('cursor_moved', {
+      ...payload,
+      userId,
+    });
+  }
+
+  @SubscribeMessage('selection_move')
+  async handleSelectionMove(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: any,
+  ) {
+    const userId = client.data.user?.userId;
+    if (!payload?.roomId || !userId) return;
+
+    // Fast boolean check
+    const isParticipant = await this.roomService.isParticipant(payload.roomId, userId);
+    if (!isParticipant) return;
+
+    // Broadcast to others in the room
+    client.to(payload.roomId).emit('selection_moved', {
+      ...payload,
+      userId,
     });
   }
 

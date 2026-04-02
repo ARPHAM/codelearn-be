@@ -29,6 +29,9 @@ export class UserWorkspace {
   })
   source: WorkspaceSource;
 
+  @Column({ name: 'room_id', nullable: true })
+  roomId: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

@@ -7,6 +7,7 @@ import { RoomService } from './room.service';
 import { Room } from './entities/room.entity';
 import { RoomParticipant } from './entities/room-participant.entity';
 import { RoomSession } from './entities/room-session.entity';
+import { WorkspaceService } from '../workspace/workspace.service';
 
 @Injectable()
 export class RoomCleanupService implements OnModuleInit {
@@ -23,6 +24,7 @@ export class RoomCleanupService implements OnModuleInit {
     private readonly participantRepo: Repository<RoomParticipant>,
     @InjectRepository(RoomSession)
     private readonly sessionRepo: Repository<RoomSession>,
+    private readonly workspaceService: WorkspaceService,
   ) {}
 
   onModuleInit() {
@@ -57,6 +59,15 @@ export class RoomCleanupService implements OnModuleInit {
         const isConnected = state?.users.has(p.userId);
 
         if (!isConnected) {
+          // Clean up workspace before deleting participant
+          if (p.workspaceId) {
+            try {
+              await this.workspaceService.deleteWorkspace(p.workspaceId, p.userId);
+            } catch (e) {
+              // Ignore if workspace already gone
+            }
+          }
+
           // Since RoomGateway now deletes participants on disconnect, 
           // any participants left in DB are truly phantoms.
           await this.participantRepo.delete({ 
@@ -103,6 +114,9 @@ export class RoomCleanupService implements OnModuleInit {
         const sCount = await this.sessionRepo.count({ where: { roomId: room.id, status: 'ACTIVE' } });
         
         if (pCount === 0 && sCount === 0) {
+          // Final sweep of any workspaces specifically for this room
+          await this.workspaceService.deleteWorkspacesByRoomId(room.id);
+          
           await this.roomRepo.delete(room.id);
           deletedRoomsCount++;
         }

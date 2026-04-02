@@ -34,10 +34,10 @@ export class CreateRoomDto {
 }
 
 export class JoinRoomDto {
-  @ApiProperty()
+  @ApiProperty({ required: false })
   @IsUUID()
-  @IsNotEmpty()
-  workspaceId: string;
+  @IsOptional()
+  workspaceId?: string;
 
   @ApiProperty({ required: false })
   @IsString()

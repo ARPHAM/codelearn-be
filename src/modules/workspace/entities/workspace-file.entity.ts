@@ -3,7 +3,7 @@ import { UserWorkspace } from './user-workspace.entity';
 import { User } from '../../user/entities/user.entity';
 
 @Entity('workspace_files')
-@Unique(['workspaceId', 'path'])
+@Unique(['workspaceId', 'filePath'])
 export class WorkspaceFile {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -15,8 +15,8 @@ export class WorkspaceFile {
   @JoinColumn({ name: 'workspace_id' })
   workspace: UserWorkspace;
 
-  @Column()
-  path: string;
+  @Column({ name: 'file_path' })
+  filePath: string;
 
   @Column({ type: 'text' })
   content: string;
