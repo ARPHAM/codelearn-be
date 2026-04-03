@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
+import { LanguagesService } from './languages.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -14,7 +15,10 @@ import { Role } from '../../common/enums/role.enum';
 @Roles(Role.ADMIN)
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly languagesService: LanguagesService,
+  ) {}
 
   @Get('sandbox/jobs') @ApiOperation({ summary: 'Liet ke container jobs dang chay' })
   listJobs() { return this.adminService.listJobs(); }
@@ -34,14 +38,17 @@ export class AdminController {
   @Get('audit-logs/:id') @ApiOperation({ summary: 'Chi tiet 1 log entry' })
   getAuditLog(@Param('id') id: string) { return this.adminService.getAuditLog(+id); }
 
-  @Get('languages') @ApiOperation({ summary: 'Danh sach ngon ngu lap trinh ho tro' })
-  listLanguages() { return this.adminService.listLanguages(); }
+  @Get('languages') @ApiOperation({ summary: 'Danh sach ngon ngu lap trinh ho tro (Admin)' })
+  listLanguages() { return this.languagesService.findAll(); }
 
   @Post('languages') @ApiOperation({ summary: 'Them ngon ngu lap trinh moi' })
-  addLanguage(@Body() dto: any) { return this.adminService.addLanguage(dto); }
+  addLanguage(@Body() dto: any) { return this.languagesService.create(dto); }
 
-  @Patch('languages/:id') @ApiOperation({ summary: 'Bat/tat hoac cap nhat cau hinh ngon ngu' })
-  updateLanguage(@Param('id') id: string, @Body() dto: any) { return this.adminService.updateLanguage(+id, dto); }
+  @Patch('languages/:id') @ApiOperation({ summary: 'Cap nhat cau hinh ngon ngu' })
+  updateLanguage(@Param('id') id: string, @Body() dto: any) { return this.languagesService.update(+id, dto); }
+
+  @Delete('languages/:id') @ApiOperation({ summary: 'Xoa ngon ngu lap trinh' })
+  removeLanguage(@Param('id') id: string) { return this.languagesService.remove(+id); }
 
   @Get('users/lecturers')
   @ApiOperation({ summary: 'Liet ke tat ca giang vien' })

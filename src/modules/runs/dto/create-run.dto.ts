@@ -2,8 +2,8 @@ import { IsString, IsOptional, IsUUID, IsNumber, IsNotEmpty } from 'class-valida
 
 export class CreateRunDto {
   @IsUUID()
-  @IsNotEmpty()
-  problemVersionId: string;
+  @IsOptional()
+  problemVersionId?: string;
 
   @IsNumber()
   @IsNotEmpty()

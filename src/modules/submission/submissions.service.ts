@@ -53,6 +53,7 @@ export class SubmissionsService {
     await this.submissionQueue.add({
       submissionId: saved.id,
       language: dto.language,
+      problemVersionId: dto.problemVersionId,
       files: dto.files.map(f => ({
         path: f.filename,
         content: f.content

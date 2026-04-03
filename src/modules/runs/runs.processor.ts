@@ -11,6 +11,7 @@ import { RunExecution } from './entities/run-execution.entity';
 import { Language } from '../problem/entities/language.entity';
 import { SubmissionStatus } from '../../shared/enums/submission-status.enum';
 import { languageConfig } from '../../config/language.config';
+import { ExecutionGateway } from '../execution/execution.gateway';
 
 const execAsync = promisify(exec);
 
@@ -22,6 +23,7 @@ export class RunsProcessor {
     @InjectRepository(Language)
     private readonly languageRepo: Repository<Language>,
     private readonly configService: ConfigService,
+    private readonly executionGateway: ExecutionGateway,
   ) {}
 
   @Process('run_job')
@@ -62,13 +64,9 @@ export class RunsProcessor {
       }
       
       // Determine file extension
-      const fileExt = langConf.image.includes('python') ? '.py' :
-                      langConf.image.includes('node') ? '.js' :
-                      langConf.image.includes('gcc') ? '.cpp' :
-                      langConf.image.includes('java') ? '.java' : '.txt';
-                      
+      const fileExt = langConf.ext || '.txt';
       let mainFile = `main${fileExt}`;
-      if (langConf.image.includes('java')) mainFile = 'Main.java'; // Assuming Main.java for Java strictly
+      if (language.name === 'java') mainFile = 'Main.java'; // Special case for JavaMain class name requirement
 
       const filePath = path.join(workspace, mainFile);
       await fs.writeFile(filePath, code);
@@ -135,6 +133,18 @@ export class RunsProcessor {
         });
       } catch (dbError) {
         console.error("DB UPDATE ERROR RUNS:", dbError);
+      }
+
+      // Send WS Result
+      try {
+        this.executionGateway.sendResult(runId, {
+          status: execResult.status,
+          output: execResult.output,
+          compileOutput: execResult.compileOutput,
+          runtime: execResult.executionTime,
+        });
+      } catch (wsError) {
+        console.error("WS ERROR RUNS:", wsError);
       }
 
       try {

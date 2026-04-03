@@ -24,31 +24,38 @@ export class RunsService {
 
   async executeRun(userId: string, dto: CreateRunDto) {
     const { problemVersionId, languageId, code, input } = dto;
+    let timeLimit = 5000;
+    let memoryLimit = 128;
+    let maxCodeSize = 50000;
+    let runInput = input || '';
 
-    const problemVersion = await this.problemVersionRepository.findOne({
-      where: { id: problemVersionId },
-      relations: ['problem'],
-    });
+    if (problemVersionId) {
+      const problemVersion = await this.problemVersionRepository.findOne({
+        where: { id: problemVersionId },
+        relations: ['problem'],
+      });
 
-    if (!problemVersion) {
-      throw new NotFoundException('Problem version not found');
+      if (!problemVersion) {
+        throw new NotFoundException('Problem version not found');
+      }
+
+      const problem = problemVersion.problem;
+      timeLimit = (problem as any).timeLimit || 5000;
+      memoryLimit = (problem as any).memoryLimit || 128;
+      maxCodeSize = (problem as any).maxCodeSize || 50000;
+
+      if (!runInput) {
+        const firstExample = await this.testcaseRepository.findOne({
+          where: { problemVersion: { id: problemVersionId }, isHidden: false },
+          order: { order: 'ASC' },
+        });
+        runInput = firstExample?.input || '';
+      }
     }
-
-    const problem = problemVersion.problem;
 
     const codeBuffer = Buffer.from(code);
-    const maxCodeSize = (problem as any).maxCodeSize || 50000;
     if (codeBuffer.length > maxCodeSize) {
       throw new BadRequestException(`Code size exceeds maximum limit of ${maxCodeSize} bytes`);
-    }
-
-    let runInput = input;
-    if (!runInput) {
-      const firstExample = await this.testcaseRepository.findOne({
-        where: { problemVersion: { id: problemVersionId }, isHidden: false },
-        order: { order: 'ASC' },
-      });
-      runInput = firstExample?.input || '';
     }
 
     const runExecution = this.runExecutionRepository.create({
@@ -68,8 +75,8 @@ export class RunsService {
       code,
       input: runInput,
       problemVersionId,
-      timeLimit: (problem as any).timeLimit || 5000,
-      memoryLimit: (problem as any).memoryLimit || 256
+      timeLimit,
+      memoryLimit
     });
 
     return runExecution;

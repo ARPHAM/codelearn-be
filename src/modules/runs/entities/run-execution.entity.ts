@@ -16,12 +16,12 @@ export class RunExecution {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column({ name: 'problem_version_id', type: 'uuid' })
-  problemVersionId: string;
+  @Column({ name: 'problem_version_id', type: 'uuid', nullable: true })
+  problemVersionId?: string;
 
-  @ManyToOne(() => ProblemVersion)
+  @ManyToOne(() => ProblemVersion, { nullable: true })
   @JoinColumn({ name: 'problem_version_id' })
-  problemVersion: ProblemVersion;
+  problemVersion?: ProblemVersion;
 
   @Column({ name: 'language_id' })
   languageId: number;
