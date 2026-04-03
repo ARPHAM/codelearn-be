@@ -89,11 +89,11 @@ export class WorkspaceController {
     return this.workspaceService.updateFile(id, user.id, dto);
   }
 
-  @Delete('workspaces/:workspaceId/files/*')
+  @Delete('workspaces/:workspaceId/files/*path')
   @ApiOperation({ summary: 'Delete a file by path' })
   deleteFileByPath(
     @Param('workspaceId') workspaceId: string,
-    @Param('0') filePath: string,
+    @Param('path') filePath: string,
     @CurrentUser() user: User,
   ) {
     return this.workspaceService.deleteFileByPath(user.id, workspaceId, filePath);

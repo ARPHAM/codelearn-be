@@ -4,10 +4,8 @@ import { Repository } from 'typeorm';
 import { Language } from '../problem/entities/language.entity';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { languageConfig } from '../../config/language.config';
 
 const execAsync = promisify(exec);
-
 @Injectable()
 export class LanguagesService implements OnModuleInit {
   private readonly logger = new Logger(LanguagesService.name);
@@ -18,34 +16,7 @@ export class LanguagesService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.seedLanguages();
-  }
-
-  private async seedLanguages() {
-    const count = await this.languageRepo.count();
-    if (count > 0) return;
-
-    this.logger.log('Seeding initial languages from config...');
-    const languages = Object.entries(languageConfig).map(([name, config], index) => {
-      const lang = new Language();
-      lang.name = name.charAt(0).toUpperCase() + name.slice(1);
-      lang.version = config.image.split(':').pop() || 'latest';
-      lang.dockerImage = config.image;
-      lang.ext = config.ext;
-      lang.runCmd = config.run;
-      lang.imageStatus = 'READY'; // Assume pre-installed for seed
-      
-      // Basic templates
-      if (name === 'python') lang.template = 'def main():\n    print("Hello, World!")\n\nif __name__ == "__main__":\n    main()';
-      if (name === 'java') lang.template = 'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}';
-      if (name === 'cpp') lang.template = '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello, World!" << endl;\n    return 0;\n}';
-      if (name === 'javascript' || name === 'typescript') lang.template = 'console.log("Hello, World!");';
-      
-      return lang;
-    });
-
-    await this.languageRepo.save(languages);
-    this.logger.log(`Seeded ${languages.length} languages.`);
+    this.logger.log('LanguagesService initialized with dynamic DB configuration.');
   }
 
   async findAll() {

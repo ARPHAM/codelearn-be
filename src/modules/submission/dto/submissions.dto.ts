@@ -4,7 +4,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CodeFileDto {
   @ApiProperty({ example: 'main.py' })
   @IsString()
-  filename: string;
+  filePath: string;
 
   @ApiProperty()
   @IsString()
@@ -36,7 +36,7 @@ export class CreateSubmissionDto {
 
   @ApiProperty({ example: 'main.py' })
   @IsString()
-  mainFile: string;
+  entryFile: string;
 
   @ApiProperty({ type: [CodeFileDto] })
   @IsArray()

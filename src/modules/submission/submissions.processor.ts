@@ -4,9 +4,9 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { languageConfig } from '../../config/language.config';
-import { Repository } from 'typeorm';
+import { Repository, Like } from 'typeorm';
 import { Submission } from './entities/submission.entity';
+import { Language } from '../problem/entities/language.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { ExecutionGateway } from '../execution/execution.gateway';
@@ -22,6 +22,8 @@ export class SubmissionsProcessor {
     private readonly submissionRepo: Repository<Submission>,
     @InjectRepository(Testcase)
     private readonly testcaseRepo: Repository<Testcase>,
+    @InjectRepository(Language)
+    private readonly languageRepo: Repository<Language>,
     private readonly configService: ConfigService,
     private readonly executionGateway: ExecutionGateway,
   ) {}
@@ -32,7 +34,7 @@ export class SubmissionsProcessor {
     console.log("JOB RECEIVED:", job.id);
     console.log("JOB DATA:", job.data);
 
-    const { submissionId, language, files, mainFile, problemVersionId } = job.data;
+    const { submissionId, language, files, entryFile, problemVersionId } = job.data;
 
     const tmpDirBase = this.configService.get<string>('CODE_TMP_DIR', './.tmp');
     const memoryLimit = this.configService.get<string>('DOCKER_MEMORY_LIMIT', '128m');
@@ -52,20 +54,31 @@ export class SubmissionsProcessor {
 
     try {
       // STEP 1: Creating workspace
+      console.log(`[Submission] Job started for ID: ${submissionId}`);
       await fs.mkdir(workspace, { recursive: true });
 
       // STEP 2: Writing files
+      console.log(`[Submission] Writing ${files.length} files to workspace...`);
       for (const file of files) {
-        const filePath = path.join(workspace, file.path);
+        const filePath = path.join(workspace, file.filePath);
         await fs.mkdir(path.dirname(filePath), { recursive: true });
         await fs.writeFile(filePath, file.content);
       }
 
-      // STEP 3: Loading language config
-      const langConf = languageConfig[language];
-      if (!langConf) {
-        throw new Error(`Unsupported language: ${language}`);
+      // STEP 3: Loading language config from DB
+      // Use a case-insensitive search for flexibility (e.g., "Python (Data Science)")
+      const languageEntity = await this.languageRepo.createQueryBuilder('lang')
+        .where('LOWER(lang.name) LIKE :name', { name: `%${language.toLowerCase()}%` })
+        .getOne();
+
+      if (!languageEntity) {
+        throw new Error(`Unsupported or missing language in DB: ${language}`);
       }
+
+      console.log(`[Submission] Using language: ${languageEntity.name} (Image: ${languageEntity.dockerImage})`);
+      const dockerImage = languageEntity.dockerImage;
+      const runCmd = languageEntity.runCmd;
+      const compileCmd = languageEntity.compileCmd;
 
       // STEP 4: Fetch Testcases
       const testcases = await this.testcaseRepo.find({
@@ -78,32 +91,30 @@ export class SubmissionsProcessor {
       // STEP 5: Loop through testcases
       for (let i = 0; i < testcases.length; i++) {
         const tc = testcases[i];
-        const inputPath = path.join(workspace, 'input.txt');
+        const inputPath = path.join(workspace, '.std_input.txt');
         await fs.writeFile(inputPath, tc.input);
 
-        let runCommand = langConf.run.replace('{entry}', mainFile || 'main.py');
-        runCommand = `cat input.txt | ${runCommand}`;
+        // Build the base command
+        let basePart = runCmd.replace('{entry}', entryFile || 'main.py');
+        if (compileCmd) {
+            basePart = `${compileCmd} && ${basePart}`;
+        }
+
+        const finalCommand = `${basePart} < .std_input.txt`;
 
         const startTime = Date.now();
         const workspaceUnix = workspace.replace(/\\/g, '/');
 
-        const dockerCmd = [
-          'docker run',
-          '--rm',
-          `--memory=${memoryLimit}`,
-          `--memory-swap=${memoryLimit}`,
-          `--cpus=${cpuLimit}`,
-          '--pids-limit=64',
-          '--network=none',
-          '--read-only',
-          '--tmpfs /tmp:rw,size=64m',
-          '--security-opt=no-new-privileges',
-          '--ulimit cpu=5',
-          `-v ${workspaceUnix}:/app`,
-          '-w /app',
-          langConf.image,
-          `sh -c "${runCommand}"`
-        ].join(' ');
+        const dockerCmd = `docker run --rm \
+          --memory="${memoryLimit}" --cpus="${cpuLimit}" \
+          --pids-limit=64 --network=none --read-only \
+          --tmpfs /tmp:rw,size=64m --security-opt=no-new-privileges \
+          --ulimit cpu=5 \
+          -v "${workspaceUnix}:/workspace" -w /workspace \
+          ${dockerImage} \
+          sh -c "${finalCommand.replace(/"/g, '\\"')}"`;
+          
+        console.log(`[Submission] Full Docker CLI: ${dockerCmd}`);
 
         let tcStatus = SubmissionStatus.ACCEPTED;
         let tcStdout = '';
@@ -165,6 +176,7 @@ export class SubmissionsProcessor {
           runtime: maxRuntime,
           score: totalScore,
           testcasePassed: testcasesPassed,
+          results: JSON.stringify(results),
         });
       } catch (dbError) {
         console.error("DB UPDATE ERROR:", dbError);
@@ -180,8 +192,9 @@ export class SubmissionsProcessor {
           results: results,
           error: lastError
         });
+        console.log(`[Submission] Result emitted via WebSocket for ID: ${submissionId}`);
       } catch (wsError) {
-        console.error("Websocket error:", wsError);
+        console.error(`[Submission] WebSocket error: ${wsError}`);
       }
 
       // STEP 8: Cleaning workspace

@@ -1,4 +1,15 @@
-import { IsString, IsOptional, IsUUID, IsNumber, IsNotEmpty } from 'class-validator';
+import { IsString, IsOptional, IsUUID, IsNumber, IsNotEmpty, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class RunFileDto {
+  @IsString()
+  @IsNotEmpty()
+  filePath: string;
+
+  @IsString()
+  @IsNotEmpty()
+  content: string;
+}
 
 export class CreateRunDto {
   @IsUUID()
@@ -10,8 +21,18 @@ export class CreateRunDto {
   languageId: number;
 
   @IsString()
-  @IsNotEmpty()
-  code: string;
+  @IsOptional()
+  code?: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RunFileDto)
+  @IsOptional()
+  files?: RunFileDto[];
+
+  @IsString()
+  @IsOptional()
+  entryFile?: string;
 
   @IsString()
   @IsOptional()

@@ -53,16 +53,20 @@ export class RunsService {
       }
     }
 
-    const codeBuffer = Buffer.from(code);
+    const codeBuffer = Buffer.from(dto.files ? JSON.stringify(dto.files) : (dto.code || ''));
     if (codeBuffer.length > maxCodeSize) {
       throw new BadRequestException(`Code size exceeds maximum limit of ${maxCodeSize} bytes`);
     }
+
+    // Resolve code to store in DB
+    const finalCode = dto.files ? JSON.stringify(dto.files) : (dto.code || '');
+    const entryFile = dto.entryFile || (dto.files && dto.files.length > 0 ? dto.files[0].filePath : '');
 
     const runExecution = this.runExecutionRepository.create({
       userId,
       problemVersionId,
       languageId,
-      code,
+      code: finalCode,
       input: runInput,
       status: SubmissionStatus.QUEUED,
     });
@@ -72,7 +76,9 @@ export class RunsService {
     await this.codeQueue.add('run_job', {
       runId: runExecution.id,
       languageId,
-      code,
+      code: dto.code,
+      files: dto.files,
+      entryFile,
       input: runInput,
       problemVersionId,
       timeLimit,
@@ -87,6 +93,13 @@ export class RunsService {
     if (!run) {
       throw new NotFoundException('Run not found');
     }
-    return run;
+    return {
+      id: run.id,
+      status: run.status,
+      output: run.output,
+      compileOutput: run.compileOutput,
+      runtime: run.runtime,
+      createdAt: run.createdAt,
+    };
   }
 }

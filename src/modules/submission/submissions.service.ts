@@ -30,9 +30,9 @@ export class SubmissionsService {
     const language = await this.languageRepo.findOne({ where: { name: dto.language } });
     if (!language) throw new NotFoundException('Ngon ngu khong ho tro');
 
-    const mainFile = dto.files.find(f => f.filename === dto.mainFile);
-    if (!mainFile) {
-      throw new NotFoundException('Khong tim thay file main');
+    const entryFile = dto.files.find(f => f.filePath === dto.entryFile);
+    if (!entryFile) {
+      throw new NotFoundException('Khong tim thay file main / entry');
     }
 
     const submission = this.submissionRepo.create({
@@ -41,7 +41,7 @@ export class SubmissionsService {
       language: { id: language.id },
 
       code: JSON.stringify({
-        mainFile: dto.mainFile,
+        entryFile: dto.entryFile,
         files: dto.files
       }),
 
@@ -55,10 +55,10 @@ export class SubmissionsService {
       language: dto.language,
       problemVersionId: dto.problemVersionId,
       files: dto.files.map(f => ({
-        path: f.filename,
+        filePath: f.filePath,
         content: f.content
       })),
-      mainFile: dto.mainFile,
+      entryFile: dto.entryFile,
     });
 
     return {
@@ -74,8 +74,25 @@ export class SubmissionsService {
     if (sub.user?.id !== currentUser.id && currentUser.role === Role.STUDENT) {
       throw new ForbiddenException('Khong co quyen xem submission nay');
     }
-    return { status: sub.status, score: sub.score, passed: 0, total: 0,
-      timeCpu: sub.runtime ? sub.runtime / 1000 + 's' : null, memoryMb: sub.memory, testResults: [], compileOutput: sub.errorMessage };
+
+    let results = [];
+    try {
+      results = sub.results ? JSON.parse(sub.results) : [];
+    } catch (e) {
+      console.error('Error parsing results:', e);
+    }
+
+    return {
+      status: sub.status,
+      score: sub.score,
+      testcasesPassed: sub.testcasePassed || 0,
+      testcasesTotal: results.length,
+      results: results,
+      runtime: sub.runtime,
+      memory: sub.memory,
+      errorMessage: sub.errorMessage,
+      createdAt: sub.createdAt,
+    };
   }
 
   async getByExercise(problemVersionId: string, query: ListSubmissionsDto) {

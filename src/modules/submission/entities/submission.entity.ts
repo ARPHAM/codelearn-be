@@ -55,8 +55,12 @@ export class Submission {
   @Column({ type: 'text', nullable: true })
   errorMessage: string;
 
+  @Column({ type: 'text', nullable: true })
   @Column({ nullable: true })
   testcasePassed: number;
+
+  @Column({ type: 'text', nullable: true })
+  results: string; // Store JSON array of testcase results
 
   @Column({ type: 'text', nullable: true })
   input: string;
