@@ -1,7 +1,7 @@
-import { Controller, Post, Body, Param, Get, UseGuards, Delete } from '@nestjs/common';
+import { Controller, Post, Body, Param, Get, UseGuards, Delete, Patch } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { RoomService } from './room.service';
-import { CreateRoomDto, JoinRoomDto } from './dtos/room.dto';
+import { CreateRoomDto, JoinRoomDto, UpdateRoomDto } from './dtos/room.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '../user/entities/user.entity';
@@ -25,6 +25,22 @@ export class RoomController {
       createdBy: room.createdBy,
       createdAt: room.createdAt,
     };
+  }
+
+  @Get('my-rooms')
+  @ApiOperation({ summary: 'Get all rooms created by current user' })
+  getMyRooms(@CurrentUser() user: User) {
+    return this.roomService.getMyRooms(user.id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update room settings' })
+  updateRoom(
+    @Param('id') id: string,
+    @CurrentUser() user: User,
+    @Body() dto: UpdateRoomDto,
+  ) {
+    return this.roomService.updateRoom(id, user.id, dto);
   }
 
   @Post(':id/join')

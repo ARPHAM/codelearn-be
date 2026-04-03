@@ -1,4 +1,5 @@
 import { IsString, IsOptional, IsInt, IsNotEmpty, MaxLength, IsEnum, IsUUID } from 'class-validator';
+import { PartialType } from '@nestjs/mapped-types';
 import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { RoomType } from '../entities/room.entity';
@@ -44,3 +45,5 @@ export class JoinRoomDto {
   @IsOptional()
   role?: string;
 }
+
+export class UpdateRoomDto extends PartialType(CreateRoomDto) {}

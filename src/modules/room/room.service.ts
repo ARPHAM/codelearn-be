@@ -4,7 +4,7 @@ import { Repository, DataSource, EntityManager } from 'typeorm';
 import { Room, RoomType } from './entities/room.entity';
 import { RoomParticipant } from './entities/room-participant.entity';
 import { RoomSession } from './entities/room-session.entity';
-import { CreateRoomDto, JoinRoomDto } from './dtos/room.dto';
+import { CreateRoomDto, JoinRoomDto, UpdateRoomDto } from './dtos/room.dto';
 import { WorkspaceService } from '../workspace/workspace.service';
 import { RoomRuntimeStore } from './room-runtime.store';
 
@@ -299,5 +299,25 @@ export class RoomService {
       } : null,
       currentUserRole,
     };
+  }
+
+  async getMyRooms(userId: string): Promise<Room[]> {
+    return this.roomRepo.find({
+      where: { createdBy: userId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async updateRoom(roomId: string, userId: string, dto: UpdateRoomDto): Promise<Room> {
+    const room = await this.findRoomById(roomId);
+
+    // Verify ownership
+    if (room.createdBy !== userId) {
+      throw new ForbiddenException('Only the room creator can update the room settings');
+    }
+
+    // Apply updates
+    Object.assign(room, dto);
+    return this.roomRepo.save(room);
   }
 }
