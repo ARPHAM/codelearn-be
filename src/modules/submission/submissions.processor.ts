@@ -105,14 +105,18 @@ export class SubmissionsProcessor {
         const startTime = Date.now();
         const workspaceUnix = workspace.replace(/\\/g, '/');
 
-        const dockerCmd = `docker run --rm \
-          --memory="${memoryLimit}" --cpus="${cpuLimit}" \
-          --pids-limit=64 --network=none --read-only \
-          --tmpfs /tmp:rw,size=64m --security-opt=no-new-privileges \
-          --ulimit cpu=5 \
-          -v "${workspaceUnix}:/workspace" -w /workspace \
-          ${dockerImage} \
-          sh -c "${finalCommand.replace(/"/g, '\\"')}"`;
+        const dockerCmd = [
+          'docker run --rm',
+          `--memory="${memoryLimit}"`,
+          `--cpus="${cpuLimit}"`,
+          '--pids-limit=64 --network=none --read-only',
+          '--tmpfs /tmp:rw,size=64m --security-opt=no-new-privileges',
+          '--ulimit cpu=5',
+          `-v "${workspaceUnix}:/workspace"`,
+          '-w /workspace',
+          dockerImage,
+          `sh -c "${finalCommand.replace(/"/g, '\\"')}"`
+        ].join(' ');
           
         console.log(`[Submission] Full Docker CLI: ${dockerCmd}`);
 

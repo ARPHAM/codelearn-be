@@ -57,8 +57,6 @@ export class RunsProcessor {
       }
       
       console.log(`[RunCode] Job started for ID: ${runId}`);
-      
-      console.log(`[RunCode] Job started for ID: ${runId}`);
       console.log(`[RunCode] Language: ${language.name} (Image: ${language.dockerImage})`);
       
       const dockerImage = language.dockerImage;
@@ -108,11 +106,15 @@ export class RunsProcessor {
       const startTime = Date.now();
       const workspaceUnix = workspace.replace(/\\/g, '/');
 
-      const dockerCmd = `docker run --rm \
-          --memory="${dockerMemoryLimit}" --cpus="${cpuLimit}" \
-          -v "${workspaceUnix}:/workspace" -w /workspace \
-          ${dockerImage} \
-          sh -c "${finalCommand.replace(/"/g, '\\"')}"`;
+      const dockerCmd = [
+        'docker run --rm',
+        `--memory="${dockerMemoryLimit}"`,
+        `--cpus="${cpuLimit}"`,
+        `-v "${workspaceUnix}:/workspace"`,
+        '-w /workspace',
+        dockerImage,
+        `sh -c "${finalCommand.replace(/"/g, '\\"')}"`
+      ].join(' ');
           
       console.log(`[RunCode] Full Docker CLI: ${dockerCmd}`);
 

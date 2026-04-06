@@ -11,7 +11,7 @@ import { IsNumber, IsArray } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
-class CreateRoomDto {
+class CreatePairRoomDto {
   @ApiProperty() @IsNumber() @Type(() => Number) exerciseId: number;
 }
 class InviteDto {
@@ -28,7 +28,7 @@ export class PairRoomsController {
 
   @Post()
   @ApiOperation({ summary: 'Tao phong pair programming' })
-  create(@Body() dto: CreateRoomDto, @CurrentUser() user: User) {
+  create(@Body() dto: CreatePairRoomDto, @CurrentUser() user: User) {
     return this.pairRoomsService.createRoom(dto.exerciseId, user.id);
   }
 
