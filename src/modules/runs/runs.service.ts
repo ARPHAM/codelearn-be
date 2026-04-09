@@ -24,8 +24,8 @@ export class RunsService {
 
   async executeRun(userId: string, dto: CreateRunDto) {
     const { problemVersionId, languageId, code, input } = dto;
-    let timeLimit = 5000;
-    let memoryLimit = 128;
+    let timeLimit: number | undefined;
+    let memoryLimit: number | undefined;
     let maxCodeSize = 50000;
     let runInput = input || '';
 
@@ -40,8 +40,8 @@ export class RunsService {
       }
 
       const problem = problemVersion.problem;
-      timeLimit = (problem as any).timeLimit || 5000;
-      memoryLimit = (problem as any).memoryLimit || 128;
+      timeLimit = (problem as any).timeLimit;
+      memoryLimit = (problem as any).memoryLimit;
       maxCodeSize = (problem as any).maxCodeSize || 50000;
 
       if (!runInput) {

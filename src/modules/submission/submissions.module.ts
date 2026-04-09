@@ -9,11 +9,13 @@ import { Language } from '../problem/entities/language.entity';
 import { Testcase } from '../problem/entities/testcase.entity';
 import { SubmissionsProcessor } from './submissions.processor';
 import { ExecutionModule } from '../execution/execution.module';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Submission, ProblemVersion, Language, Testcase]),
     ExecutionModule,
+    AdminModule,
     BullModule.registerQueue({
       name: 'code-execution',
     }),

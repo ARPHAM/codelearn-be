@@ -23,8 +23,14 @@ export class SubmissionsService {
   ) {}
 
   async submit(dto: CreateSubmissionDto, student: User) {
-    const problemVersion = await this.problemVersionRepo.findOne({ where: { id: dto.problemVersionId } });
+    const problemVersion = await this.problemVersionRepo.findOne({ 
+      where: { id: dto.problemVersionId },
+      relations: ['problem']
+    });
     if (!problemVersion) throw new NotFoundException('Phien ban bai tap khong ton tai');
+    const problem = problemVersion.problem;
+    const timeLimit = (problem as any).timeLimit;
+    const memoryLimit = (problem as any).memoryLimit;
 
     // Assuming language string mapped to Language entity ID earlier, here we fetch a dummy language ID for compilation fallback
     const language = await this.languageRepo.findOne({ where: { name: dto.language } });
@@ -59,6 +65,8 @@ export class SubmissionsService {
         content: f.content
       })),
       entryFile: dto.entryFile,
+      timeLimit,
+      memoryLimit,
     });
 
     return {

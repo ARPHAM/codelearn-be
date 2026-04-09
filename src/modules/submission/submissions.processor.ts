@@ -12,6 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import { ExecutionGateway } from '../execution/execution.gateway';
 import { SubmissionStatus } from '../../shared/enums/submission-status.enum';
 import { Testcase } from '../problem/entities/testcase.entity';
+import { SystemSettingsService } from '../admin/system-settings.service';
 
 const execAsync = promisify(exec);
 
@@ -26,6 +27,7 @@ export class SubmissionsProcessor {
     private readonly languageRepo: Repository<Language>,
     private readonly configService: ConfigService,
     private readonly executionGateway: ExecutionGateway,
+    private readonly systemSettingsService: SystemSettingsService,
   ) {}
 
   @Process()
@@ -34,12 +36,14 @@ export class SubmissionsProcessor {
     console.log("JOB RECEIVED:", job.id);
     console.log("JOB DATA:", job.data);
 
-    const { submissionId, language, files, entryFile, problemVersionId } = job.data;
+    const { submissionId, language, files, entryFile, problemVersionId, memoryLimit, timeLimit } = job.data;
 
     const tmpDirBase = this.configService.get<string>('CODE_TMP_DIR', './.tmp');
-    const memoryLimit = this.configService.get<string>('DOCKER_MEMORY_LIMIT', '128m');
-    const cpuLimit = this.configService.get<string>('DOCKER_CPU_LIMIT', '0.5');
-    const globalTimeout = Number(this.configService.get('CODE_TIMEOUT', 5000));
+    
+    // Fetch dynamic settings
+    const defaultMemory = await this.systemSettingsService.getSettingValue<number>('sandbox.default_memory_limit', 256);
+    const defaultCpu = await this.systemSettingsService.getSettingValue<number>('sandbox.cpu_limit', 0.5);
+    const defaultTimeout = await this.systemSettingsService.getSettingValue<number>('sandbox.default_timeout', 5000);
 
     const workspace = path.resolve(tmpDirBase, String(job.id));
     console.log("Workspace path:", workspace);
@@ -80,6 +84,14 @@ export class SubmissionsProcessor {
       const runCmd = languageEntity.runCmd;
       const compileCmd = languageEntity.compileCmd;
 
+      const memoryLmt = memoryLimit || languageEntity.defaultMemoryLimit || defaultMemory;
+      const cpuLmt = languageEntity.defaultCpuLimit || defaultCpu;
+      const timeLmt = timeLimit || languageEntity.defaultTimeout || defaultTimeout;
+
+      const finalMemoryLimit = `${memoryLmt}m`;
+      const finalCpuLimit = String(cpuLmt);
+      const executionTimeout = Number(timeLmt) + 1000;
+
       // STEP 4: Fetch Testcases
       const testcases = await this.testcaseRepo.find({
         where: { problemVersion: { id: problemVersionId } },
@@ -88,34 +100,72 @@ export class SubmissionsProcessor {
 
       console.log(`Evaluating ${testcases.length} testcases...`);
 
-      // STEP 5: Loop through testcases
+      // STEP 5: Compile if necessary (Once for all testcases)
+      if (compileCmd) {
+        console.log(`[Submission] Compiling with image ${dockerImage}...`);
+        const compileFullCmd = [
+          'docker run --rm',
+          `--memory="${finalMemoryLimit}"`,
+          `--cpus="${finalCpuLimit}"`,
+          `-v "${workspace.replace(/\\/g, '/')}:/workspace"`,
+          '-w /workspace',
+          dockerImage,
+          `sh -c "${compileCmd.replace(/"/g, '\\"')}"`
+        ].join(' ');
+
+        try {
+          const { stderr } = await execAsync(compileFullCmd, { timeout: 30000 }); // 30s for compilation
+          if (stderr) console.warn(`[Submission] Compile Warning/Error: ${stderr}`);
+        } catch (error: any) {
+          console.error(`[Submission] Compile Failed: ${error.message}`);
+          finalStatus = SubmissionStatus.RUNTIME_ERROR;
+          lastError = error.stderr || error.message || 'Compilation Error';
+          // No need to run testcases if compilation failed
+          throw new Error('Compilation Failed');
+        }
+      }
+
+      console.log(`Evaluating ${testcases.length} testcases...`);
+
+      // STEP 6: Loop through testcases
       for (let i = 0; i < testcases.length; i++) {
         const tc = testcases[i];
         const inputPath = path.join(workspace, '.std_input.txt');
         await fs.writeFile(inputPath, tc.input);
 
-        // Build the base command
-        let basePart = runCmd.replace('{entry}', entryFile || 'main.py');
-        if (compileCmd) {
-            basePart = `${compileCmd} && ${basePart}`;
-        }
+        // Create a script wrapper file inside the workspace for precise metrics
+        const marker = `__SUBEXEC_${submissionId}_${tc.id}__`;
+        const timeLimitSecs = Math.ceil(executionTimeout / 1000);
+        const wrapperScriptPath = path.join(workspace, '_exec_wrapper.sh');
+        
+        const wrapperContent = [
+          '#!/bin/sh',
+          `s=$(date +%s%N)`,
+          `timeout ${timeLimitSecs}s ${runCmd.replace('{entry}', entryFile)} < .std_input.txt`,
+          `ret=$?`,
+          `e=$(date +%s%N)`,
+          `echo`,
+          `echo "${marker}runtime:$(( (e-s)/1000000 ))"`,
+          `echo "${marker}exitcode:$ret"`,
+          `exit $ret`
+        ].join('\n');
 
-        const finalCommand = `${basePart} < .std_input.txt`;
-
+        await fs.writeFile(wrapperScriptPath, wrapperContent);
+        
         const startTime = Date.now();
         const workspaceUnix = workspace.replace(/\\/g, '/');
 
         const dockerCmd = [
           'docker run --rm',
-          `--memory="${memoryLimit}"`,
-          `--cpus="${cpuLimit}"`,
+          `--memory="${finalMemoryLimit}"`,
+          `--cpus="${finalCpuLimit}"`,
           '--pids-limit=64 --network=none --read-only',
           '--tmpfs /tmp:rw,size=64m --security-opt=no-new-privileges',
           '--ulimit cpu=5',
           `-v "${workspaceUnix}:/workspace"`,
           '-w /workspace',
           dockerImage,
-          `sh -c "${finalCommand.replace(/"/g, '\\"')}"`
+          `sh _exec_wrapper.sh`
         ].join(' ');
           
         console.log(`[Submission] Full Docker CLI: ${dockerCmd}`);
@@ -123,30 +173,68 @@ export class SubmissionsProcessor {
         let tcStatus = SubmissionStatus.ACCEPTED;
         let tcStdout = '';
         let tcStderr = '';
+        let tcExecutionTime = 0;
 
         try {
-          const { stdout, stderr } = await execAsync(dockerCmd, { timeout: globalTimeout });
-          tcStdout = stdout.trim();
-          tcStderr = stderr;
+          const { stdout, stderr } = await execAsync(dockerCmd, { timeout: executionTimeout + 2000 });
+          
+          let cleanStdout = stdout;
+          let internalExitCode = 0;
 
-          // Compare output
-          const expected = tc.expectedOutput.trim();
-          if (tcStdout !== expected) {
-            tcStatus = SubmissionStatus.WRONG_ANSWER;
+          const runtimeMatch = stdout.match(new RegExp(`${marker}runtime:(\\d+)`));
+          if (runtimeMatch) {
+            tcExecutionTime = parseInt(runtimeMatch[1]);
+            cleanStdout = cleanStdout.replace(runtimeMatch[0], '');
+          }
+
+          const exitCodeMatch = stdout.match(new RegExp(`${marker}exitcode:(\\d+)`));
+          if (exitCodeMatch) {
+            internalExitCode = parseInt(exitCodeMatch[1]);
+            cleanStdout = cleanStdout.replace(exitCodeMatch[0], '');
+          }
+
+          if (internalExitCode === 124) {
+            tcStatus = SubmissionStatus.TIME_LIMIT;
+            tcStderr = 'Time Limit Exceeded';
+          } else if (internalExitCode !== 0) {
+            tcStatus = SubmissionStatus.RUNTIME_ERROR;
+            tcStderr = stderr || `Runtime Error (Exit Code: ${internalExitCode})`;
+          }
+
+          tcStdout = cleanStdout.trim();
+          
+          if (tcStatus === SubmissionStatus.ACCEPTED) {
+            // Compare output
+            const expected = tc.expectedOutput.trim();
+            if (tcStdout !== expected) {
+              tcStatus = SubmissionStatus.WRONG_ANSWER;
+            }
           }
         } catch (error: any) {
           tcStdout = error.stdout || '';
-          tcStderr = error.stderr || error.message || 'Execution error';
-
+          
           if (error.killed || error.signal === 'SIGTERM') {
             tcStatus = SubmissionStatus.TIME_LIMIT;
+            tcStderr = 'Time Limit Exceeded';
           } else {
             tcStatus = SubmissionStatus.RUNTIME_ERROR;
+            // Clean up error message to hide system paths and docker commands
+            let cleanError = (error.stderr || '').trim();
+            if (!cleanError) {
+              const rawMsg = error.message || '';
+              if (rawMsg.includes('docker run') || rawMsg.includes('Command failed')) {
+                cleanError = 'Runtime Error';
+              } else {
+                cleanError = rawMsg || 'Execution Error';
+              }
+            }
+            tcStderr = cleanError;
           }
         }
 
-        const runtime = Date.now() - startTime;
+        const runtime = tcExecutionTime || Math.max(0, Date.now() - startTime - 500);
         maxRuntime = Math.max(maxRuntime, runtime);
+        totalMemory = 0; // Future enhancement
 
         if (tcStatus === SubmissionStatus.ACCEPTED) {
           testcasesPassed++;
@@ -167,10 +255,13 @@ export class SubmissionsProcessor {
         console.log(`Testcase ${i + 1}: ${tcStatus} (${runtime}ms)`);
       }
 
-    } catch (globalError: any) {
-      console.log("SYSTEM ERROR:", globalError);
-      lastError = globalError.message || 'System error setup';
-      finalStatus = SubmissionStatus.RUNTIME_ERROR;
+    } catch (error: any) {
+      console.error("[SubmissionsProcessor] Global Error:", error);
+      // Ensure we still update the submission status if something breaks globally
+      await this.submissionRepo.update(submissionId, { 
+        status: SubmissionStatus.RUNTIME_ERROR,
+        errorMessage: 'Internal Sandbox Error'
+      });
     } finally {
       // STEP 6: Updating database
       try {

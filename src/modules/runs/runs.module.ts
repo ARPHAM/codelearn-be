@@ -9,6 +9,7 @@ import { Testcase } from '../problem/entities/testcase.entity';
 import { Language } from '../problem/entities/language.entity';
 import { RunsProcessor } from './runs.processor';
 import { ExecutionModule } from '../execution/execution.module';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ExecutionModule } from '../execution/execution.module';
       Language,
     ]),
     ExecutionModule,
+    AdminModule,
     BullModule.registerQueue({
       name: 'code-execution',
     }),

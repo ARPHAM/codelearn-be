@@ -6,11 +6,15 @@ import { User } from '../user/entities/user.entity';
 import { Language } from '../problem/entities/language.entity';
 import { LanguagesService } from './languages.service';
 import { LanguagesController } from './languages.controller';
+import { SystemSetting } from './entities/system-setting.entity';
+import { AuditLog } from './entities/audit-log.entity';
+import { SystemSettingsService } from './system-settings.service';
+import { HealthService } from './health.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Language])],
+  imports: [TypeOrmModule.forFeature([User, Language, SystemSetting, AuditLog])],
   controllers: [AdminController, LanguagesController],
-  providers: [AdminService, LanguagesService],
-  exports: [LanguagesService],
+  providers: [AdminService, LanguagesService, SystemSettingsService, HealthService],
+  exports: [LanguagesService, SystemSettingsService],
 })
 export class AdminModule {}

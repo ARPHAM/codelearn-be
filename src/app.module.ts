@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bull';
 import { ScheduleModule } from '@nestjs/schedule';
+import { CacheModule } from '@nestjs/cache-manager';
 
 
 // Feature modules
@@ -50,13 +51,16 @@ import { WorkspaceFile } from './modules/workspace/entities/workspace-file.entit
 import { Room } from './modules/room/entities/room.entity';
 import { RoomParticipant } from './modules/room/entities/room-participant.entity';
 import { RoomSession } from './modules/room/entities/room-session.entity';
+import { SystemSetting } from './modules/admin/entities/system-setting.entity';
+import { AuditLog } from './modules/admin/entities/audit-log.entity';
 
 const ALL_ENTITIES = [
   User, AssignmentProblem, Assignment, BankItem, QuestionBank, Course, Enrollment,
   ExamAttempt, ExamLog, ExamProblem, Exam, ExecutionJob, SubmissionResult,
   Exercise, TestCase, Language, ProblemLanguageFile, ProblemVersion, Problem, ProblemTestcase,
   RunExecution, SubmissionFile, Submission,
-  UserWorkspace, WorkspaceFile, Room, RoomParticipant, RoomSession
+  UserWorkspace, WorkspaceFile, Room, RoomParticipant, RoomSession,
+  SystemSetting, AuditLog
 ];
 
 @Module({
@@ -66,6 +70,9 @@ const ALL_ENTITIES = [
 
     // Schedule
     ScheduleModule.forRoot(),
+
+    // Cache
+    CacheModule.register({ isGlobal: true }),
 
 
     // Database

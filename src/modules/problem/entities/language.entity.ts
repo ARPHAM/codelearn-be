@@ -36,4 +36,13 @@ export class Language {
 
   @Column({ name: 'run_cmd', type: 'text' })
   runCmd: string;
+
+  @Column({ name: 'default_memory_limit', type: 'int', default: 256 })
+  defaultMemoryLimit: number;
+
+  @Column({ name: 'default_cpu_limit', type: 'float', default: 0.5 })
+  defaultCpuLimit: number;
+
+  @Column({ name: 'default_timeout', type: 'int', default: 5000 })
+  defaultTimeout: number;
 }

@@ -4,9 +4,12 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { LanguagesService } from './languages.service';
+import { SystemSettingsService } from './system-settings.service';
+import { HealthService } from './health.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '../../common/enums/role.enum';
 
 @ApiTags('Admin')
@@ -18,6 +21,8 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly languagesService: LanguagesService,
+    private readonly systemSettingsService: SystemSettingsService,
+    private readonly healthService: HealthService,
   ) {}
 
   @Get('sandbox/jobs') @ApiOperation({ summary: 'Liet ke container jobs dang chay' })
@@ -26,11 +31,16 @@ export class AdminController {
   @Delete('sandbox/jobs/:jobId') @ApiOperation({ summary: 'Kill container job' })
   killJob(@Param('jobId') jobId: string) { return this.adminService.killJob(jobId); }
 
-  @Get('sandbox/config') @ApiOperation({ summary: 'Lay cau hinh tai nguyen sandbox' })
-  getSandboxConfig() { return this.adminService.getSandboxConfig(); }
+  @Get('settings') @ApiOperation({ summary: 'Lay toan bo cau hinh he thong' })
+  getSettings() { return this.systemSettingsService.findAllGrouped(); }
 
-  @Put('sandbox/config') @ApiOperation({ summary: 'Cap nhat gioi han tai nguyen sandbox' })
-  updateSandboxConfig(@Body() dto: any) { return this.adminService.updateSandboxConfig(dto); }
+  @Patch('settings') @ApiOperation({ summary: 'Cap nhat nhieu tham so cau hinh' })
+  updateSettings(@Body() dto: any, @CurrentUser() user: any) { 
+    return this.systemSettingsService.updateSettings(dto, user.id); 
+  }
+
+  @Get('health/infrastructure') @ApiOperation({ summary: 'Trang thai Docker va tai nguyen' })
+  getInfrastructureHealth() { return this.healthService.getInfrastructureHealth(); }
 
   @Get('audit-logs') @ApiOperation({ summary: 'Truy van log hanh dong he thong' })
   getAuditLogs(@Query() query: any) { return this.adminService.getAuditLogs(query); }
