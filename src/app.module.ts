@@ -22,6 +22,7 @@ import { RunsModule } from './modules/runs/runs.module';
 import { SubmissionsModule } from './modules/submission/submissions.module';
 import { WorkspaceModule } from './modules/workspace/workspace.module';
 import { RoomModule } from './modules/room/room.module';
+import { ProblemModule } from './modules/problem/problem.module';
 
 // Entities
 import { User } from './modules/user/entities/user.entity';
@@ -42,6 +43,8 @@ import { Language } from './modules/problem/entities/language.entity';
 import { ProblemLanguageFile } from './modules/problem/entities/problem-language-file.entity';
 import { ProblemVersion } from './modules/problem/entities/problem-version.entity';
 import { Problem } from './modules/problem/entities/problem.entity';
+import { ProblemFile } from './modules/problem/entities/problem-file.entity';
+import { ProblemStats } from './modules/problem/entities/problem-stats.entity';
 import { Testcase as ProblemTestcase } from './modules/problem/entities/testcase.entity';
 import { RunExecution } from './modules/runs/entities/run-execution.entity';
 import { SubmissionFile } from './modules/submission/entities/submission-file.entity';
@@ -58,6 +61,7 @@ const ALL_ENTITIES = [
   User, AssignmentProblem, Assignment, BankItem, QuestionBank, Course, Enrollment,
   ExamAttempt, ExamLog, ExamProblem, Exam, ExecutionJob, SubmissionResult,
   Exercise, TestCase, Language, ProblemLanguageFile, ProblemVersion, Problem, ProblemTestcase,
+  ProblemFile, ProblemStats,
   RunExecution, SubmissionFile, Submission,
   UserWorkspace, WorkspaceFile, Room, RoomParticipant, RoomSession,
   SystemSetting, AuditLog
@@ -136,6 +140,7 @@ const ALL_ENTITIES = [
     SubmissionsModule,
     WorkspaceModule,
     RoomModule,
+    ProblemModule,
   ],
 })
 export class AppModule {}

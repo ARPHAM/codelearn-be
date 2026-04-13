@@ -15,8 +15,11 @@ export class ProblemVersion {
   @JoinColumn({ name: 'problem_id' })
   problem: Problem;
 
-  @Column({ type: 'text' })
-  description: string;
+  @Column({ type: 'jsonb' })
+  description: any;
+
+  @Column({ type: 'jsonb', nullable: true, name: 'workspace_config' })
+  workspaceConfig: any;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'created_by' })

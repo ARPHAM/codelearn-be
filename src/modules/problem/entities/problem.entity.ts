@@ -1,9 +1,11 @@
 import {
   Entity, Column,
   ManyToOne, JoinColumn, Index,
-  PrimaryGeneratedColumn,
+  PrimaryGeneratedColumn, OneToOne,
+  CreateDateColumn, UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
+import { ProblemStats } from './problem-stats.entity';
 
 @Entity('problems')
 export class Problem {
@@ -28,10 +30,10 @@ export class Problem {
   @JoinColumn({ name: 'created_by' })
   createdBy: User;
 
-  @Column()
+  @Column({ default: 'INACTIVE' })
   status: string;
 
-  @Column()
+  @Column({ default: 'PRIVATE' })
   visibility: string;
 
   @Column({ nullable: true })
@@ -39,4 +41,13 @@ export class Problem {
 
   @Column({ name: 'current_version_id', nullable: true })
   currentVersionId: string;
+
+  @OneToOne(() => ProblemStats, (stats) => stats.problem)
+  stats: ProblemStats;
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 }
