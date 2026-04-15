@@ -13,6 +13,12 @@ import { User } from '../user/entities/user.entity';
 export class RoomController {
   constructor(private readonly roomService: RoomService) {}
 
+  @Get()
+  @ApiOperation({ summary: 'Lấy danh sách tất cả các phòng học đang online' })
+  async listRooms() {
+    return this.roomService.getRooms();
+  }
+
   @Post()
   @ApiOperation({ summary: 'Create a new meeting room' })
   async createRoom(@CurrentUser() user: User, @Body() dto: CreateRoomDto) {

@@ -1,6 +1,6 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
-  ManyToOne, JoinColumn,
+  ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 
@@ -21,4 +21,10 @@ export class QuestionBank {
   @ManyToOne(() => User)
   @JoinColumn({ name: 'created_by' })
   createdBy: User;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

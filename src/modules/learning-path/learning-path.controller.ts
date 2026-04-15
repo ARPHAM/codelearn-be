@@ -1,4 +1,4 @@
-﻿import { Controller, Get, Post, Body, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { LearningPathService } from './learning-path.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -19,28 +19,35 @@ class AiHintDto {
   @ApiProperty() @IsString() language: string;
 }
 
-@ApiTags('Learning Path & AI')
+@ApiTags('Student Progress')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.STUDENT)
-@Controller()
+@Roles(Role.STUDENT, Role.ADMIN)
+@Controller('student')
 export class LearningPathController {
+
   constructor(private readonly learningPathService: LearningPathService) {}
 
-  @Get('learning-path/me')
-  @ApiOperation({ summary: 'Lay lo trinh hoc ca nhan' })
+  @Get('learning-path')
+  @ApiOperation({ summary: 'Lấy cây kỹ năng chi tiết của sinh viên' })
   getMyPath(@CurrentUser() user: User) {
     return this.learningPathService.getMyPath(user.id);
   }
 
-  @Get('ai/suggest')
-  @ApiOperation({ summary: 'AI goi y bai tap tiep theo' })
+  @Post('learning-path/refresh')
+  @ApiOperation({ summary: 'AI cập nhật lại lộ trình học (Re-generate)' })
+  refreshPath(@CurrentUser() user: User) {
+    return this.learningPathService.refreshLearningPath(user.id);
+  }
+
+  @Get('learning-path/suggestions')
+  @ApiOperation({ summary: 'AI gợi ý bài tập dựa trên điểm yếu' })
   getSuggestions(@CurrentUser() user: User, @Query('limit', new ParseIntPipe({ optional: true })) limit?: number) {
     return this.learningPathService.getSuggestions(user.id, limit ?? 5);
   }
 
   @Post('ai/hint')
-  @ApiOperation({ summary: 'Yeu cau AI giai thich loi hoac goi y huong giai' })
+  @ApiOperation({ summary: 'AI gợi ý hướng giải bài tập' })
   getHint(@Body() dto: AiHintDto, @CurrentUser() user: User) {
     return this.learningPathService.getAiHint(dto, user.id);
   }

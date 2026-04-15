@@ -1,14 +1,17 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bull';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CacheModule } from '@nestjs/cache-manager';
+import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 
 
 // Feature modules
 import { AuthModule } from './modules/auth/auth.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { LeaderboardModule } from './modules/leaderboard/leaderboard.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { BattlesModule } from './modules/battles/battles.module';
 import { CoursesModule } from './modules/course/courses.module';
@@ -23,6 +26,7 @@ import { SubmissionsModule } from './modules/submission/submissions.module';
 import { WorkspaceModule } from './modules/workspace/workspace.module';
 import { RoomModule } from './modules/room/room.module';
 import { ProblemModule } from './modules/problem/problem.module';
+import { BankModule } from './modules/bank/bank.module';
 
 // Entities
 import { User } from './modules/user/entities/user.entity';
@@ -56,6 +60,8 @@ import { RoomParticipant } from './modules/room/entities/room-participant.entity
 import { RoomSession } from './modules/room/entities/room-session.entity';
 import { SystemSetting } from './modules/admin/entities/system-setting.entity';
 import { AuditLog } from './modules/admin/entities/audit-log.entity';
+import { UserSkillNode } from './modules/learning-path/entities/user-skill-node.entity';
+import { BattleSession } from './modules/battles/entities/battle-session.entity';
 
 const ALL_ENTITIES = [
   User, AssignmentProblem, Assignment, BankItem, QuestionBank, Course, Enrollment,
@@ -64,7 +70,7 @@ const ALL_ENTITIES = [
   ProblemFile, ProblemStats,
   RunExecution, SubmissionFile, Submission,
   UserWorkspace, WorkspaceFile, Room, RoomParticipant, RoomSession,
-  SystemSetting, AuditLog
+  SystemSetting, AuditLog, UserSkillNode, BattleSession
 ];
 
 @Module({
@@ -141,6 +147,14 @@ const ALL_ENTITIES = [
     WorkspaceModule,
     RoomModule,
     ProblemModule,
+    LeaderboardModule,
+    BankModule,
+  ],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
   ],
 })
 export class AppModule {}

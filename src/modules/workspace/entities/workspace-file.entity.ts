@@ -11,7 +11,7 @@ export class WorkspaceFile {
   @Column({ name: 'workspace_id' })
   workspaceId: string;
 
-  @ManyToOne(() => UserWorkspace)
+  @ManyToOne(() => UserWorkspace, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'workspace_id' })
   workspace: UserWorkspace;
 

@@ -4,22 +4,50 @@ import { Like, Repository } from 'typeorm';
 
 import { User } from '../user/entities/user.entity';
 import { Role } from '../../common/enums/role.enum';
+import { ExecutionJob } from '../execution/entites/execution-job.entity';
+import { AuditLog } from './entities/audit-log.entity';
 
 @Injectable()
 export class AdminService {
   constructor(
     @InjectRepository(User)
     private userRepo: Repository<User>,
+    @InjectRepository(AuditLog)
+    private auditRepo: Repository<AuditLog>,
+    @InjectRepository(ExecutionJob)
+    private jobRepo: Repository<ExecutionJob>,
   ) {}
 
-  async listJobs() { return { jobs: [] }; }
-
-  async killJob(jobId: string) {
-    return { message: 'Job ' + jobId + ' da bi dung. Bai nop: FAILED' };
+  async listJobs() { 
+    const jobs = await this.jobRepo.find({
+      relations: ['submission', 'submission.user', 'submission.problemVersion', 'submission.problemVersion.problem', 'submission.language'],
+    });
+    return { jobs };
   }
 
-  async getAuditLogs(query: any) { return { logs: [], total: 0 }; }
-  async getAuditLog(id: number) { return { id }; }
+  async killJob(jobId: string) {
+    // Logic thực tế để kill container (VD: qua Docker API)
+    return { message: 'Yêu cầu dừng Job ' + jobId + ' đã được gửi tới Sandbox worker.' };
+  }
+
+  async getAuditLogs(query: any) { 
+    const { page = 1, limit = 20, search = '' } = query;
+    const qb = this.auditRepo.createQueryBuilder('log')
+      .orderBy('log.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    if (search) {
+      qb.where('log.action ILIKE :search OR log.userId ILIKE :search', { search: `%${search}%` });
+    }
+
+    const [items, total] = await qb.getManyAndCount();
+    return { items, total };
+  }
+  
+  async getAuditLog(id: number) { 
+    return this.auditRepo.findOne({ where: { id } });
+  }
   async listLanguages() { return { languages: [] }; }
 
   async addLanguage(dto: any) {

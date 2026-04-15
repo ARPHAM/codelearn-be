@@ -29,6 +29,14 @@ export class AnalyticsController {
   getStudentAnalytics(@Param('studentId') studentId: string) {
     return this.analyticsService.getStudentAnalytics(studentId);
   }
+
+  @Get('lecturer/dashboard')
+  @UseGuards(RolesGuard)
+  @Roles(Role.LECTURER, Role.ADMIN)
+  @ApiOperation({ summary: 'Dashboard tổng quan giảng viên' })
+  getLecturerDashboard() {
+    return this.analyticsService.getLecturerDashboard();
+  }
 }
 
 @ApiTags('Analytics & Dashboard')

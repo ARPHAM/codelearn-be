@@ -42,6 +42,9 @@ export class Problem {
   @Column({ name: 'current_version_id', nullable: true })
   currentVersionId: string;
 
+  @Column('simple-array', { nullable: true })
+  tags: string[];
+
   @OneToOne(() => ProblemStats, (stats) => stats.problem)
   stats: ProblemStats;
 

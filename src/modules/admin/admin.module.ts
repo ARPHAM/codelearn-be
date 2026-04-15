@@ -10,11 +10,12 @@ import { SystemSetting } from './entities/system-setting.entity';
 import { AuditLog } from './entities/audit-log.entity';
 import { SystemSettingsService } from './system-settings.service';
 import { HealthService } from './health.service';
+import { ExecutionJob } from '../execution/entites/execution-job.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Language, SystemSetting, AuditLog])],
+  imports: [TypeOrmModule.forFeature([User, Language, SystemSetting, AuditLog, ExecutionJob])],
   controllers: [AdminController, LanguagesController],
   providers: [AdminService, LanguagesService, SystemSettingsService, HealthService],
-  exports: [LanguagesService, SystemSettingsService],
+  exports: [LanguagesService, SystemSettingsService, TypeOrmModule],
 })
 export class AdminModule {}

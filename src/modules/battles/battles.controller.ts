@@ -22,35 +22,43 @@ class ChallengeDto {
 @ApiTags('Code Battle')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller()
+@Controller('battles')
 export class BattlesController {
   constructor(private readonly battlesService: BattlesService) {}
 
-  @Post('battles/challenge')
+  @Get('active')
+  @ApiOperation({ summary: 'Lấy danh sách các trận đấu đang chờ đối thủ' })
+  getActive() {
+    return this.battlesService.getActiveBattles();
+  }
+
+  @Post('challenge')
   @UseGuards(RolesGuard)
-  @Roles(Role.STUDENT)
-  @ApiOperation({ summary: 'Gui loi thach dau' })
+  @Roles(Role.STUDENT, Role.ADMIN)
+  @ApiOperation({ summary: 'Gửi lời thách đấu tới người chơi khác' })
+
   challenge(@Body() dto: ChallengeDto, @CurrentUser() user: User) {
     return this.battlesService.challenge(dto, user);
   }
 
-  @Post('battles/:id/accept')
+  @Post(':id/accept')
   @UseGuards(RolesGuard)
-  @Roles(Role.STUDENT)
-  @ApiOperation({ summary: 'Chap nhan loi thach dau' })
-  accept(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: User) {
+  @Roles(Role.STUDENT, Role.ADMIN)
+  @ApiOperation({ summary: 'Chấp nhận lời thách đấu' })
+
+  accept(@Param('id') id: string, @CurrentUser() user: User) {
     return this.battlesService.accept(id, user);
   }
 
-  @Get('battles/:id/result')
-  @ApiOperation({ summary: 'Ket qua tran dau' })
-  getResult(@Param('id', ParseIntPipe) id: number) {
+  @Get(':id/result')
+  @ApiOperation({ summary: 'Kết quả trận đấu' })
+  getResult(@Param('id') id: string) {
     return this.battlesService.getResult(id);
   }
 
-  @Get('leaderboard')
-  @ApiOperation({ summary: 'Bang xep hang' })
-  leaderboard(@Query() query: any) {
-    return this.battlesService.getLeaderboard(query);
+  @Post(':id/cancel')
+  @ApiOperation({ summary: 'Hủy trận đấu' })
+  cancel(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.battlesService.cancel(id, user);
   }
 }

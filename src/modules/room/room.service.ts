@@ -320,4 +320,10 @@ export class RoomService {
     Object.assign(room, dto);
     return this.roomRepo.save(room);
   }
+
+  async getRooms(): Promise<Room[]> {
+    return this.roomRepo.find({
+      order: { createdAt: 'DESC' },
+    });
+  }
 }
