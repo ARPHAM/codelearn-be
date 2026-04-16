@@ -1,6 +1,10 @@
 import {
-  Entity, PrimaryColumn, Column,
-  ManyToOne, JoinColumn, Index,
+  Entity,
+  PrimaryColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  Index,
 } from 'typeorm';
 import { ProblemVersion } from './problem-version.entity';
 

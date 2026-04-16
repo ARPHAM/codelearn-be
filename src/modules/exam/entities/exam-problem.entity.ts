@@ -1,5 +1,9 @@
 import {
-  Entity, Column, ManyToOne, JoinColumn, Index,
+  Entity,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  Index,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Exam } from './exam.entity';
@@ -8,7 +12,6 @@ import { Problem } from '../../problem/entities/problem.entity';
 @Entity('exam_problems')
 @Index(['exam', 'problem'], { unique: true })
 export class ExamProblem {
-
   @PrimaryGeneratedColumn()
   id: number;
 

@@ -11,7 +11,9 @@ export class LanguagesController {
   constructor(private readonly languagesService: LanguagesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Lấy danh sách tất cả ngôn ngữ hỗ trợ (dành cho sinh viên)' })
+  @ApiOperation({
+    summary: 'Lấy danh sách tất cả ngôn ngữ hỗ trợ (dành cho sinh viên)',
+  })
   findAll() {
     return this.languagesService.findAll();
   }

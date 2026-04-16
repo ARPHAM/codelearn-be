@@ -1,5 +1,11 @@
 import {
-  Controller, Get, Post, Param, Body, UseGuards, ParseIntPipe,
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';

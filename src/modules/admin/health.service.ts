@@ -20,7 +20,7 @@ export class HealthService {
           memoryUsage: Math.round(systemInfo.memoryUsage),
           diskUsage: 0, // Manual calculation needed or use df -h
           status: 'healthy',
-        }
+        },
       ],
       registry: process.env.DOCKER_REGISTRY || 'localhost:5000',
     };
@@ -28,8 +28,12 @@ export class HealthService {
 
   private async getDockerInfo() {
     try {
-      const { stdout: version } = await execAsync("docker version --format \"{{.Server.Version}}\"");
-      const { stdout: info } = await execAsync("docker info --format \"{{json .}}\"");
+      const { stdout: version } = await execAsync(
+        'docker version --format "{{.Server.Version}}"',
+      );
+      const { stdout: info } = await execAsync(
+        'docker info --format "{{json .}}"',
+      );
       const dockerData = JSON.parse(info);
 
       return {

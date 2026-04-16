@@ -1,4 +1,12 @@
-import { IsString, IsOptional, IsInt, IsNotEmpty, MaxLength, IsEnum, IsUUID } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsInt,
+  IsNotEmpty,
+  MaxLength,
+  IsEnum,
+  IsUUID,
+} from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';

@@ -1,6 +1,10 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  ManyToOne, JoinColumn, Index,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  Index,
 } from 'typeorm';
 import { Problem } from './problem.entity';
 import { Language } from './language.entity';

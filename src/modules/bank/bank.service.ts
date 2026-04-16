@@ -35,12 +35,12 @@ export class BankService {
       relations: ['createdBy'],
     });
     if (!bank) throw new NotFoundException('Ngan hang cau hoi khong ton tai');
-    
+
     const items = await this.itemRepo.find({
       where: { bank: { id } },
       relations: ['problem'],
     });
-    
+
     return { ...bank, items };
   }
 

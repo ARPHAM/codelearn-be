@@ -16,7 +16,9 @@ export class LanguagesService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    this.logger.log('LanguagesService initialized with dynamic DB configuration.');
+    this.logger.log(
+      'LanguagesService initialized with dynamic DB configuration.',
+    );
   }
 
   async findAll() {
@@ -31,7 +33,7 @@ export class LanguagesService implements OnModuleInit {
     const language = this.languageRepo.create(dto);
     language.imageStatus = 'PULLING';
     const saved = await this.languageRepo.save(language);
-    
+
     this.pullImage(saved.id, saved.dockerImage);
     return saved;
   }
@@ -48,7 +50,7 @@ export class LanguagesService implements OnModuleInit {
     }
 
     const saved = await this.languageRepo.save(language);
-    
+
     if (language.imageStatus === 'PULLING') {
       this.pullImage(saved.id, saved.dockerImage);
     }
@@ -64,13 +66,16 @@ export class LanguagesService implements OnModuleInit {
     this.logger.log(`Starting docker pull for ${imageName}...`);
     try {
       await execAsync(`docker pull ${imageName}`);
-      await this.languageRepo.update(id, { imageStatus: 'READY', lastError: null });
+      await this.languageRepo.update(id, {
+        imageStatus: 'READY',
+        lastError: null,
+      });
       this.logger.log(`Successfully pulled ${imageName}`);
     } catch (error) {
       this.logger.error(`Failed to pull ${imageName}: ${error.message}`);
-      await this.languageRepo.update(id, { 
-        imageStatus: 'ERROR', 
-        lastError: error.message 
+      await this.languageRepo.update(id, {
+        imageStatus: 'ERROR',
+        lastError: error.message,
       });
     }
   }

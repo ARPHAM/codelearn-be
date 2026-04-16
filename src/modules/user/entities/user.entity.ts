@@ -1,6 +1,10 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn, Index,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
 } from 'typeorm';
 import { Role } from '../../../common/enums/role.enum';
 

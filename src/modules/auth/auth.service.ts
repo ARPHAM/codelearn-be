@@ -11,11 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 
 import { User } from '../user/entities/user.entity';
-import {
-  LoginDto,
-  RegisterDto,
-  ForgotPasswordDto,
-} from './dto/auth.dto';
+import { LoginDto, RegisterDto, ForgotPasswordDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -168,15 +164,15 @@ export class AuthService {
     }
 
     return {
-        id: user.id,
-        name: user.fullName,
-        role: user.role,
-        email: user.email,
-        avatar: user.avatarUrl,
-        mssv: user.mssv,
-        major: user.major,
-        rating: user.rating,
-        xp: user.xp,
+      id: user.id,
+      name: user.fullName,
+      role: user.role,
+      email: user.email,
+      avatar: user.avatarUrl,
+      mssv: user.mssv,
+      major: user.major,
+      rating: user.rating,
+      xp: user.xp,
     };
   }
 }

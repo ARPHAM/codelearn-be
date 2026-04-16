@@ -5,14 +5,15 @@ import { LearningPathService } from './learning-path.service';
 import { UserSkillNode } from './entities/user-skill-node.entity';
 import { Problem } from '../problem/entities/problem.entity';
 import { Submission } from '../submission/entities/submission.entity';
-import { AiService } from '../../shared/services/ai.service';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([UserSkillNode, Problem, Submission]),
+    AiModule,
   ],
   controllers: [LearningPathController],
-  providers: [LearningPathService, AiService],
+  providers: [LearningPathService],
   exports: [LearningPathService],
 })
 export class LearningPathModule {}

@@ -1,4 +1,12 @@
-import { Entity, Column, CreateDateColumn, ManyToOne, JoinColumn, PrimaryColumn, Unique } from 'typeorm';
+import {
+  Entity,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  PrimaryColumn,
+  Unique,
+} from 'typeorm';
 import { Room } from './room.entity';
 import { User } from '../../user/entities/user.entity';
 import { UserWorkspace } from '../../workspace/entities/user-workspace.entity';

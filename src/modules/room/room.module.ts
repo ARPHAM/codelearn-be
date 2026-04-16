@@ -12,7 +12,6 @@ import { RoomGateway } from './room.gateway';
 import { RoomRuntimeStore } from './room-runtime.store';
 import { RoomCleanupService } from './room-cleanup.service';
 
-
 @Module({
   imports: [
     TypeOrmModule.forFeature([Room, RoomParticipant, RoomSession]),
@@ -24,5 +23,4 @@ import { RoomCleanupService } from './room-cleanup.service';
   providers: [RoomService, RoomGateway, RoomRuntimeStore, RoomCleanupService],
   exports: [RoomService, RoomGateway, RoomRuntimeStore, RoomCleanupService],
 })
-
 export class RoomModule {}

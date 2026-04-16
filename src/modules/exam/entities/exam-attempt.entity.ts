@@ -1,6 +1,10 @@
 import {
-  Entity, PrimaryColumn, Column,
-  ManyToOne, JoinColumn, Index,
+  Entity,
+  PrimaryColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  Index,
 } from 'typeorm';
 import { Exam } from './exam.entity';
 import { User } from '../../user/entities/user.entity';

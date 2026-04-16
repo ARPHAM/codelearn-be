@@ -1,6 +1,11 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 

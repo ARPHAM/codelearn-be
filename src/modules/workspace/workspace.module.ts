@@ -7,7 +7,9 @@ import { WorkspaceController } from './workspace.controller';
 import { RoomParticipant } from '../room/entities/room-participant.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserWorkspace, WorkspaceFile, RoomParticipant])],
+  imports: [
+    TypeOrmModule.forFeature([UserWorkspace, WorkspaceFile, RoomParticipant]),
+  ],
   controllers: [WorkspaceController],
   providers: [WorkspaceService],
   exports: [WorkspaceService],

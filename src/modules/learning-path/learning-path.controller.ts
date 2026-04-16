@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  UseGuards,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { LearningPathService } from './learning-path.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -25,7 +33,6 @@ class AiHintDto {
 @Roles(Role.STUDENT, Role.ADMIN)
 @Controller('student')
 export class LearningPathController {
-
   constructor(private readonly learningPathService: LearningPathService) {}
 
   @Get('learning-path')
@@ -42,7 +49,10 @@ export class LearningPathController {
 
   @Get('learning-path/suggestions')
   @ApiOperation({ summary: 'AI gợi ý bài tập dựa trên điểm yếu' })
-  getSuggestions(@CurrentUser() user: User, @Query('limit', new ParseIntPipe({ optional: true })) limit?: number) {
+  getSuggestions(
+    @CurrentUser() user: User,
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+  ) {
     return this.learningPathService.getSuggestions(user.id, limit ?? 5);
   }
 

@@ -21,7 +21,7 @@ import { ProblemStats } from './entities/problem-stats.entity';
       ProblemLanguageFile,
       ProblemFile,
       ProblemStats,
-    ])
+    ]),
   ],
   controllers: [ProblemController],
   providers: [ProblemService],

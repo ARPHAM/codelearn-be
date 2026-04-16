@@ -1,4 +1,10 @@
-import { Controller, Get, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { LeaderboardService } from './leaderboard.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';

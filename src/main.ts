@@ -16,7 +16,9 @@ async function bootstrap() {
   app.setGlobalPrefix(apiPrefix);
 
   // CORS
-  const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3456').split(',');
+  const corsOrigins = (
+    process.env.CORS_ORIGINS ?? 'http://localhost:3456'
+  ).split(',');
   app.enableCors({ origin: corsOrigins, credentials: true });
 
   // Global validation
@@ -38,9 +40,11 @@ async function bootstrap() {
   if (process.env.SWAGGER_ENABLED !== 'false') {
     const config = new DocumentBuilder()
       .setTitle(process.env.SWAGGER_TITLE ?? 'CodeLearn API')
-      .setDescription(process.env.SWAGGER_DESCRIPTION ?? 'CodeLearn REST API v1 Documentation')
+      .setDescription(
+        process.env.SWAGGER_DESCRIPTION ??
+          'CodeLearn REST API v1 Documentation',
+      )
       .setVersion(process.env.SWAGGER_VERSION ?? '1.0')
-      .addBearerAuth()
       .addTag('Authentication')
       .addTag('Courses & Enrollments')
       .addTag('Exercises & Submissions')
@@ -59,7 +63,11 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
-  console.log(`🚀 CodeLearn API running on http://localhost:${port}/${apiPrefix}`);
-  console.log(`📚 Swagger docs at http://localhost:${port}/${process.env.SWAGGER_PATH ?? 'api/docs'}`);
+  console.log(
+    `🚀 CodeLearn API running on http://localhost:${port}/${apiPrefix}`,
+  );
+  console.log(
+    `📚 Swagger docs at http://localhost:${port}/${process.env.SWAGGER_PATH ?? 'api/docs'}`,
+  );
 }
 bootstrap();

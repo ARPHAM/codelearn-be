@@ -1,5 +1,11 @@
 ﻿import {
-  Controller, Get, Post, Param, Body, UseGuards, ParseIntPipe,
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PlagiarismService } from './plagiarism.service';
@@ -19,7 +25,10 @@ export class PlagiarismController {
 
   @Post('check/:exerciseId')
   @ApiOperation({ summary: 'Chay phan tich dao van cho toan bo submission' })
-  check(@Param('exerciseId', ParseIntPipe) exerciseId: number, @Body() dto: CheckPlagiarismDto) {
+  check(
+    @Param('exerciseId', ParseIntPipe) exerciseId: number,
+    @Body() dto: CheckPlagiarismDto,
+  ) {
     return this.plagiarismService.startCheck(exerciseId, dto.threshold);
   }
 

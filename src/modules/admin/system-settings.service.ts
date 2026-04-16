@@ -23,17 +23,71 @@ export class SystemSettingsService implements OnModuleInit {
   private async seedDefaults() {
     const defaults = [
       // Sandbox
-      { key: 'sandbox.max_concurrent', value: '20', type: SettingType.NUMBER, group: 'sandbox', description: 'So luong container toi da chay cung luc' },
-      { key: 'sandbox.default_timeout', value: '5000', type: SettingType.NUMBER, group: 'sandbox', description: 'Thoi gian timeout mac dinh (ms)' },
-      { key: 'sandbox.default_memory_limit', value: '256', type: SettingType.NUMBER, group: 'sandbox', description: 'Gioi han RAM mac dinh (MB)' },
-      { key: 'sandbox.cpu_limit', value: '0.5', type: SettingType.NUMBER, group: 'sandbox', description: 'Gioi han CPU mac dinh (vCPU)' },
-      { key: 'sandbox.enable_network', value: 'false', type: SettingType.BOOLEAN, group: 'sandbox', description: 'Cho phep container truy cap mang' },
-      
+      {
+        key: 'sandbox.max_concurrent',
+        value: '20',
+        type: SettingType.NUMBER,
+        group: 'sandbox',
+        description: 'So luong container toi da chay cung luc',
+      },
+      {
+        key: 'sandbox.default_timeout',
+        value: '5000',
+        type: SettingType.NUMBER,
+        group: 'sandbox',
+        description: 'Thoi gian timeout mac dinh (ms)',
+      },
+      {
+        key: 'sandbox.default_memory_limit',
+        value: '256',
+        type: SettingType.NUMBER,
+        group: 'sandbox',
+        description: 'Gioi han RAM mac dinh (MB)',
+      },
+      {
+        key: 'sandbox.cpu_limit',
+        value: '0.5',
+        type: SettingType.NUMBER,
+        group: 'sandbox',
+        description: 'Gioi han CPU mac dinh (vCPU)',
+      },
+      {
+        key: 'sandbox.enable_network',
+        value: 'false',
+        type: SettingType.BOOLEAN,
+        group: 'sandbox',
+        description: 'Cho phep container truy cap mang',
+      },
+
       // Plagiarism
-      { key: 'plagiarism.algorithm', value: 'AST + Token', type: SettingType.STRING, group: 'plagiarism', description: 'Thuat toan kiem tra dao van' },
-      { key: 'plagiarism.warning_threshold', value: '40', type: SettingType.NUMBER, group: 'plagiarism', description: 'Nguong canh bao (%)' },
-      { key: 'plagiarism.danger_threshold', value: '70', type: SettingType.NUMBER, group: 'plagiarism', description: 'Nguong nguy cap (%)' },
-      { key: 'plagiarism.auto_flag', value: 'true', type: SettingType.BOOLEAN, group: 'plagiarism', description: 'Tu dong danh dau vi pham' },
+      {
+        key: 'plagiarism.algorithm',
+        value: 'AST + Token',
+        type: SettingType.STRING,
+        group: 'plagiarism',
+        description: 'Thuat toan kiem tra dao van',
+      },
+      {
+        key: 'plagiarism.warning_threshold',
+        value: '40',
+        type: SettingType.NUMBER,
+        group: 'plagiarism',
+        description: 'Nguong canh bao (%)',
+      },
+      {
+        key: 'plagiarism.danger_threshold',
+        value: '70',
+        type: SettingType.NUMBER,
+        group: 'plagiarism',
+        description: 'Nguong nguy cap (%)',
+      },
+      {
+        key: 'plagiarism.auto_flag',
+        value: 'true',
+        type: SettingType.BOOLEAN,
+        group: 'plagiarism',
+        description: 'Tu dong danh dau vi pham',
+      },
     ];
 
     for (const d of defaults) {
@@ -48,7 +102,8 @@ export class SystemSettingsService implements OnModuleInit {
     const settings = await this.settingRepo.find();
     return settings.reduce((acc, s) => {
       if (!acc[s.group]) acc[s.group] = {};
-      acc[s.group][this.camelCase(s.key.split('.')[1] || s.key)] = this.parseValue(s.value, s.type);
+      acc[s.group][this.camelCase(s.key.split('.')[1] || s.key)] =
+        this.parseValue(s.value, s.type);
       return acc;
     }, {});
   }
@@ -60,7 +115,7 @@ export class SystemSettingsService implements OnModuleInit {
       for (const field of Object.keys(groupUpdates)) {
         const key = `${group}.${this.snakeCase(field)}`;
         const value = String(groupUpdates[field]);
-        
+
         const setting = await this.settingRepo.findOne({ where: { key } });
         if (setting) {
           const oldValue = setting.value;
@@ -69,11 +124,13 @@ export class SystemSettingsService implements OnModuleInit {
           await this.cacheManager.del(`setting:${key}`);
 
           // Log Audit
-          await this.auditLogRepo.save(this.auditLogRepo.create({
-            userId,
-            action: 'UPDATE_SETTING',
-            metadata: { key, old: oldValue, new: value }
-          }));
+          await this.auditLogRepo.save(
+            this.auditLogRepo.create({
+              userId,
+              action: 'UPDATE_SETTING',
+              metadata: { key, old: oldValue, new: value },
+            }),
+          );
         }
       }
     }
@@ -95,10 +152,18 @@ export class SystemSettingsService implements OnModuleInit {
 
   private parseValue(value: string, type: SettingType): any {
     switch (type) {
-      case SettingType.NUMBER: return Number(value);
-      case SettingType.BOOLEAN: return value === 'true';
-      case SettingType.JSON: try { return JSON.parse(value); } catch { return value; }
-      default: return value;
+      case SettingType.NUMBER:
+        return Number(value);
+      case SettingType.BOOLEAN:
+        return value === 'true';
+      case SettingType.JSON:
+        try {
+          return JSON.parse(value);
+        } catch {
+          return value;
+        }
+      default:
+        return value;
     }
   }
 

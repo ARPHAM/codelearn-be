@@ -1,7 +1,4 @@
-import {
-  Entity, PrimaryColumn, Column,
-  ManyToOne, JoinColumn,
-} from 'typeorm';
+import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { Course } from '../../course/entities/course.entity';
 import { QuestionBank } from '../../bank/entities/question-bank.entity';
 

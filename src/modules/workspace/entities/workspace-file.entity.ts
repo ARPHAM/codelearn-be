@@ -1,4 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, UpdateDateColumn, ManyToOne, JoinColumn, Unique, CreateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  Unique,
+  CreateDateColumn,
+} from 'typeorm';
 import { UserWorkspace } from './user-workspace.entity';
 import { User } from '../../user/entities/user.entity';
 

@@ -13,7 +13,9 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
   handleRequest(err: any, user: any) {
     if (err || !user) {
-      throw err || new UnauthorizedException('Token không hợp lệ hoặc đã hết hạn');
+      throw (
+        err || new UnauthorizedException('Token không hợp lệ hoặc đã hết hạn')
+      );
     }
     return user;
   }

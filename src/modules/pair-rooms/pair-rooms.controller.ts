@@ -34,7 +34,11 @@ export class PairRoomsController {
 
   @Post(':roomId/invite')
   @ApiOperation({ summary: 'Moi sinh vien khac vao phong' })
-  invite(@Param('roomId') roomId: string, @Body() dto: InviteDto, @CurrentUser() user: User) {
+  invite(
+    @Param('roomId') roomId: string,
+    @Body() dto: InviteDto,
+    @CurrentUser() user: User,
+  ) {
     return this.pairRoomsService.inviteToRoom(roomId, dto.inviteeIds, user.id);
   }
 }

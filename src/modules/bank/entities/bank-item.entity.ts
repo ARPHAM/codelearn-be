@@ -1,6 +1,11 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { QuestionBank } from './question-bank.entity';
 import { Problem } from '../../problem/entities/problem.entity';

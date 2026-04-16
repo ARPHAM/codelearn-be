@@ -1,7 +1,4 @@
-import {
-  Entity, PrimaryColumn, Column,
-  ManyToOne, JoinColumn,
-} from 'typeorm';
+import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { Submission } from './submission.entity';
 
 @Entity('submission_files')

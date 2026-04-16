@@ -1,7 +1,4 @@
-import {
-  Entity, PrimaryColumn, Column,
-  OneToOne, JoinColumn,
-} from 'typeorm';
+import { Entity, PrimaryColumn, Column, OneToOne, JoinColumn } from 'typeorm';
 import { Problem } from './problem.entity';
 
 @Entity('problem_stats')

@@ -1,5 +1,13 @@
 import {
-  Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, ParseIntPipe,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { BankService } from './bank.service';
@@ -15,7 +23,7 @@ import { User } from '../user/entities/user.entity';
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.LECTURER, Role.ADMIN)
-@Controller('banks')
+@Controller('bank')
 export class BankController {
   constructor(private readonly bankService: BankService) {}
 
@@ -32,7 +40,9 @@ export class BankController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Lay chi tiet mot ngan hang kem cac items/problems' })
+  @ApiOperation({
+    summary: 'Lay chi tiet mot ngan hang kem cac items/problems',
+  })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.bankService.findOne(id);
   }

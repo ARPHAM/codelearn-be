@@ -1,7 +1,21 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { WorkspaceService } from './workspace.service';
-import { CreateUserWorkspaceDto, UpdateUserWorkspaceDto, CreateWorkspaceFileDto, UpdateWorkspaceFileDto } from './dtos/workspace.dto';
+import {
+  CreateUserWorkspaceDto,
+  UpdateUserWorkspaceDto,
+  CreateWorkspaceFileDto,
+  UpdateWorkspaceFileDto,
+} from './dtos/workspace.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '../user/entities/user.entity';
@@ -16,7 +30,10 @@ export class WorkspaceController {
   // Workspace Endpoints
   @Post('workspaces')
   @ApiOperation({ summary: 'Create a new user workspace' })
-  createWorkspace(@CurrentUser() user: User, @Body() dto: CreateUserWorkspaceDto) {
+  createWorkspace(
+    @CurrentUser() user: User,
+    @Body() dto: CreateUserWorkspaceDto,
+  ) {
     return this.workspaceService.createWorkspace(user.id, dto);
   }
 
@@ -51,7 +68,10 @@ export class WorkspaceController {
   // File Endpoints
   @Get('workspaces/:id/files')
   @ApiOperation({ summary: 'Get file list for a workspace' })
-  findFilesByWorkspace(@Param('id') workspaceId: string, @CurrentUser() user: User) {
+  findFilesByWorkspace(
+    @Param('id') workspaceId: string,
+    @CurrentUser() user: User,
+  ) {
     return this.workspaceService.findFilesByWorkspace(workspaceId, user.id);
   }
 
@@ -96,7 +116,11 @@ export class WorkspaceController {
     @Param('path') filePath: string,
     @CurrentUser() user: User,
   ) {
-    return this.workspaceService.deleteFileByPath(user.id, workspaceId, filePath);
+    return this.workspaceService.deleteFileByPath(
+      user.id,
+      workspaceId,
+      filePath,
+    );
   }
 
   @Delete('files/:id')

@@ -1,11 +1,21 @@
-import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { Subject } from 'rxjs';
 import { UserWorkspace } from './entities/user-workspace.entity';
 import { WorkspaceFile } from './entities/workspace-file.entity';
 import { RoomParticipant } from '../room/entities/room-participant.entity';
-import { CreateUserWorkspaceDto, UpdateUserWorkspaceDto, CreateWorkspaceFileDto, UpdateWorkspaceFileDto } from './dtos/workspace.dto';
+import {
+  CreateUserWorkspaceDto,
+  UpdateUserWorkspaceDto,
+  CreateWorkspaceFileDto,
+  UpdateWorkspaceFileDto,
+} from './dtos/workspace.dto';
 
 export enum WorkspaceEventType {
   FILE_CREATED = 'FILE_CREATED',
@@ -34,8 +44,14 @@ export class WorkspaceService {
   ) {}
 
   // Workspace Operations
-  async createWorkspace(userId: string, dto: CreateUserWorkspaceDto, manager?: EntityManager): Promise<UserWorkspace> {
-    const repo = manager ? manager.getRepository(UserWorkspace) : this.workspaceRepo;
+  async createWorkspace(
+    userId: string,
+    dto: CreateUserWorkspaceDto,
+    manager?: EntityManager,
+  ): Promise<UserWorkspace> {
+    const repo = manager
+      ? manager.getRepository(UserWorkspace)
+      : this.workspaceRepo;
     const workspace = repo.create({
       ...dto,
       userId,
@@ -47,12 +63,16 @@ export class WorkspaceService {
     return this.workspaceRepo.find({ where: { userId } });
   }
 
-  async findWorkspaceById(id: string, userId: string, allowRoomParticipant = false): Promise<UserWorkspace> {
+  async findWorkspaceById(
+    id: string,
+    userId: string,
+    allowRoomParticipant = false,
+  ): Promise<UserWorkspace> {
     const workspace = await this.workspaceRepo.findOne({ where: { id } });
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
     }
-    
+
     // Check ownership
     if (workspace.userId === userId) {
       return workspace;
@@ -63,16 +83,24 @@ export class WorkspaceService {
       const roomParticipation = await this.participantRepo.findOne({
         where: { workspaceId: id },
       });
-      
-      console.log(`[WorkspaceService] Checking room auth for user ${userId} on workspace ${id}`);
-      console.log(`[WorkspaceService] Workspace room participant found:`, roomParticipation?.roomId);
+
+      console.log(
+        `[WorkspaceService] Checking room auth for user ${userId} on workspace ${id}`,
+      );
+      console.log(
+        `[WorkspaceService] Workspace room participant found:`,
+        roomParticipation?.roomId,
+      );
 
       if (roomParticipation) {
         const requesterParticipation = await this.participantRepo.findOne({
           where: { roomId: roomParticipation.roomId, userId },
         });
-        
-        console.log(`[WorkspaceService] Requester room participant found:`, !!requesterParticipation);
+
+        console.log(
+          `[WorkspaceService] Requester room participant found:`,
+          !!requesterParticipation,
+        );
 
         if (requesterParticipation) {
           return workspace;
@@ -80,11 +108,17 @@ export class WorkspaceService {
       }
     }
 
-    console.log(`[WorkspaceService] Access DENIED for user ${userId} on workspace ${id}`);
+    console.log(
+      `[WorkspaceService] Access DENIED for user ${userId} on workspace ${id}`,
+    );
     throw new ForbiddenException('You do not have access to this workspace');
   }
 
-  async updateWorkspace(id: string, userId: string, dto: UpdateUserWorkspaceDto): Promise<UserWorkspace> {
+  async updateWorkspace(
+    id: string,
+    userId: string,
+    dto: UpdateUserWorkspaceDto,
+  ): Promise<UserWorkspace> {
     const workspace = await this.findWorkspaceById(id, userId);
     Object.assign(workspace, dto);
     return this.workspaceRepo.save(workspace);
@@ -103,12 +137,15 @@ export class WorkspaceService {
   }
 
   // File Operations
-  async createFile(userId: string, dto: CreateWorkspaceFileDto): Promise<WorkspaceFile> {
+  async createFile(
+    userId: string,
+    dto: CreateWorkspaceFileDto,
+  ): Promise<WorkspaceFile> {
     if (!dto.workspaceId) {
-       throw new ConflictException('Workspace ID is required');
+      throw new ConflictException('Workspace ID is required');
     }
     const workspace = await this.findWorkspaceById(dto.workspaceId, userId);
-    
+
     // Check if file already exists
     const existing = await this.fileRepo.findOne({
       where: { workspaceId: dto.workspaceId, filePath: dto.filePath },
@@ -135,13 +172,20 @@ export class WorkspaceService {
     return savedFile;
   }
 
-  async findFilesByWorkspace(workspaceId: string, userId: string): Promise<WorkspaceFile[]> {
+  async findFilesByWorkspace(
+    workspaceId: string,
+    userId: string,
+  ): Promise<WorkspaceFile[]> {
     // Validate workspace ownership OR room participation for viewing
     await this.findWorkspaceById(workspaceId, userId, true);
     return this.fileRepo.find({ where: { workspaceId } });
   }
 
-  async findFileById(id: string, userId: string, allowRoomParticipant = false): Promise<WorkspaceFile> {
+  async findFileById(
+    id: string,
+    userId: string,
+    allowRoomParticipant = false,
+  ): Promise<WorkspaceFile> {
     const file = await this.fileRepo.findOne({
       where: { id },
     });
@@ -150,12 +194,20 @@ export class WorkspaceService {
       throw new NotFoundException('File not found');
     }
 
-    const workspace = await this.findWorkspaceById(file.workspaceId, userId, allowRoomParticipant);
+    const workspace = await this.findWorkspaceById(
+      file.workspaceId,
+      userId,
+      allowRoomParticipant,
+    );
     file.workspace = workspace; // Attach for caller
     return file;
   }
 
-  async updateFile(id: string, userId: string, dto: UpdateWorkspaceFileDto): Promise<WorkspaceFile> {
+  async updateFile(
+    id: string,
+    userId: string,
+    dto: UpdateWorkspaceFileDto,
+  ): Promise<WorkspaceFile> {
     const file = await this.findFileById(id, userId);
     file.content = dto.content;
     return this.fileRepo.save(file);
@@ -165,7 +217,7 @@ export class WorkspaceService {
     const file = await this.findFileById(id, userId);
     const workspaceId = file.workspaceId;
     const filePath = file.filePath;
-    
+
     await this.fileRepo.remove(file);
 
     this.fileEvents.next({
@@ -176,7 +228,11 @@ export class WorkspaceService {
     });
   }
 
-  async deleteFileByPath(userId: string, workspaceId: string, filePath: string): Promise<void> {
+  async deleteFileByPath(
+    userId: string,
+    workspaceId: string,
+    filePath: string,
+  ): Promise<void> {
     // Validate workspace ownership
     await this.findWorkspaceById(workspaceId, userId);
 

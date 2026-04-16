@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, EntityManager } from 'typeorm';
 import { Room, RoomType } from './entities/room.entity';
@@ -32,10 +37,14 @@ export class RoomService {
       const savedRoom = await manager.save(Room, room);
 
       // Create a personal workspace for the creator explicitly for this room
-      const workspace = await this.workspaceService.createWorkspace(userId, {
-        name: `Workspace for ${savedRoom.name}`,
-        roomId: savedRoom.id,
-      }, manager);
+      const workspace = await this.workspaceService.createWorkspace(
+        userId,
+        {
+          name: `Workspace for ${savedRoom.name}`,
+          roomId: savedRoom.id,
+        },
+        manager,
+      );
 
       // Add creator as the first participant
       const participant = manager.create(RoomParticipant, {
@@ -58,7 +67,11 @@ export class RoomService {
     return room;
   }
 
-  async joinRoom(roomId: string, userId: string, dto: JoinRoomDto): Promise<RoomParticipant> {
+  async joinRoom(
+    roomId: string,
+    userId: string,
+    dto: JoinRoomDto,
+  ): Promise<RoomParticipant> {
     if (!dto.workspaceId) {
       // If no workspace provided, use the "ensureParticipant" logic to auto-create/find one
       return this.ensureParticipant(roomId, userId);
@@ -70,7 +83,8 @@ export class RoomService {
     await this.workspaceService.findWorkspaceById(dto.workspaceId, userId);
 
     // Check if already in room
-    const existing = await this.participantRepo.createQueryBuilder('participant')
+    const existing = await this.participantRepo
+      .createQueryBuilder('participant')
       .where('participant.room_id = :roomId', { roomId })
       .andWhere('participant.user_id = :userId', { userId })
       .getOne();
@@ -95,7 +109,8 @@ export class RoomService {
   }
 
   async leaveRoom(roomId: string, userId: string): Promise<void> {
-    const participant = await this.participantRepo.createQueryBuilder('participant')
+    const participant = await this.participantRepo
+      .createQueryBuilder('participant')
       .where('participant.room_id = :roomId', { roomId })
       .andWhere('participant.user_id = :userId', { userId })
       .getOne();
@@ -106,7 +121,8 @@ export class RoomService {
   }
 
   async getParticipants(roomId: string): Promise<RoomParticipant[]> {
-    return this.participantRepo.createQueryBuilder('participant')
+    return this.participantRepo
+      .createQueryBuilder('participant')
       .leftJoinAndSelect('participant.user', 'user')
       .leftJoinAndSelect('participant.workspace', 'workspace')
       .where('participant.room_id = :roomId', { roomId })
@@ -114,15 +130,20 @@ export class RoomService {
   }
 
   async isParticipant(roomId: string, userId: string): Promise<boolean> {
-    const count = await this.participantRepo.createQueryBuilder('participant')
+    const count = await this.participantRepo
+      .createQueryBuilder('participant')
       .where('participant.room_id = :roomId', { roomId })
       .andWhere('participant.user_id = :userId', { userId })
       .getCount();
     return count > 0;
   }
 
-  async validateParticipantOrThrow(roomId: string, userId: string): Promise<RoomParticipant> {
-    const participant = await this.participantRepo.createQueryBuilder('participant')
+  async validateParticipantOrThrow(
+    roomId: string,
+    userId: string,
+  ): Promise<RoomParticipant> {
+    const participant = await this.participantRepo
+      .createQueryBuilder('participant')
       .where('participant.room_id = :roomId', { roomId })
       .andWhere('participant.user_id = :userId', { userId })
       .getOne();
@@ -136,9 +157,13 @@ export class RoomService {
    * Ensure user is a participant. If not, auto-add them as GUEST
    * with an auto-created workspace. Used by Socket join_room.
    */
-  async ensureParticipant(roomId: string, userId: string): Promise<RoomParticipant> {
+  async ensureParticipant(
+    roomId: string,
+    userId: string,
+  ): Promise<RoomParticipant> {
     // Check if already participant
-    const existing = await this.participantRepo.createQueryBuilder('participant')
+    const existing = await this.participantRepo
+      .createQueryBuilder('participant')
       .where('participant.room_id = :roomId', { roomId })
       .andWhere('participant.user_id = :userId', { userId })
       .getOne();
@@ -146,7 +171,8 @@ export class RoomService {
 
     // Validate room exists & check capacity
     const room = await this.findRoomById(roomId);
-    const count = await this.participantRepo.createQueryBuilder('participant')
+    const count = await this.participantRepo
+      .createQueryBuilder('participant')
       .where('participant.room_id = :roomId', { roomId })
       .getCount();
     if (count >= room.maxParticipants) {
@@ -154,9 +180,12 @@ export class RoomService {
     }
 
     // Reuse existing workspace if any, or create new
-    let workspace = await this.workspaceService.findAllWorkspaces(userId)
-      .then(wsList => wsList.find(ws => ws.name === `Workspace for ${room.name}`));
-    
+    let workspace = await this.workspaceService
+      .findAllWorkspaces(userId)
+      .then((wsList) =>
+        wsList.find((ws) => ws.name === `Workspace for ${room.name}`),
+      );
+
     if (!workspace) {
       workspace = await this.workspaceService.createWorkspace(userId, {
         name: `Workspace for ${room.name}`,
@@ -181,10 +210,9 @@ export class RoomService {
     return participant?.roomId || null;
   }
 
-
-
   async findActiveSession(roomId: string): Promise<RoomSession | null> {
-    return this.sessionRepo.createQueryBuilder('session')
+    return this.sessionRepo
+      .createQueryBuilder('session')
       .where('session.room_id = :roomId', { roomId })
       .andWhere("session.status = 'ACTIVE'")
       .getOne();
@@ -194,7 +222,8 @@ export class RoomService {
     const existing = await this.findActiveSession(roomId);
     if (existing) {
       if (!existing.hostId) {
-        const host = await this.participantRepo.createQueryBuilder('participant')
+        const host = await this.participantRepo
+          .createQueryBuilder('participant')
           .where('participant.room_id = :roomId', { roomId })
           .andWhere('participant.role = :role', { role: 'HOST' })
           .getOne();
@@ -206,7 +235,8 @@ export class RoomService {
       return existing;
     }
 
-    const host = await this.participantRepo.createQueryBuilder('participant')
+    const host = await this.participantRepo
+      .createQueryBuilder('participant')
       .where('participant.room_id = :roomId', { roomId })
       .andWhere('participant.role = :role', { role: 'HOST' })
       .getOne();
@@ -233,7 +263,8 @@ export class RoomService {
 
     let currentUserRole: string | null = null;
     if (userId) {
-      const participant = await this.participantRepo.createQueryBuilder('participant')
+      const participant = await this.participantRepo
+        .createQueryBuilder('participant')
         .where('participant.room_id = :roomId', { roomId })
         .andWhere('participant.user_id = :userId', { userId })
         .getOne();
@@ -243,7 +274,8 @@ export class RoomService {
     }
 
     // Fetch latest session
-    const session = await this.sessionRepo.createQueryBuilder('session')
+    const session = await this.sessionRepo
+      .createQueryBuilder('session')
       .where('session.room_id = :roomId', { roomId })
       .orderBy('session.started_at', 'DESC')
       .getOne();
@@ -276,7 +308,7 @@ export class RoomService {
       const gracePeriodMs = 15 * 60 * 1000;
       const endsAt = session.endedAt.getTime() + gracePeriodMs;
       const now = Date.now();
-      
+
       if (now < endsAt) {
         sessionStatus = 'CLOSED';
         graceRemainingSeconds = Math.floor((endsAt - now) / 1000);
@@ -289,14 +321,16 @@ export class RoomService {
         name: room.name,
         description: room.description,
       },
-      session: sessionStatus ? {
-        id: session.id,
-        status: sessionStatus,
-        hostId: session.hostId,
-        closingAt,
-        endedAt: session.endedAt ? session.endedAt.getTime() : undefined,
-        graceRemainingSeconds,
-      } : null,
+      session: sessionStatus
+        ? {
+            id: session.id,
+            status: sessionStatus,
+            hostId: session.hostId,
+            closingAt,
+            endedAt: session.endedAt ? session.endedAt.getTime() : undefined,
+            graceRemainingSeconds,
+          }
+        : null,
       currentUserRole,
     };
   }
@@ -308,12 +342,18 @@ export class RoomService {
     });
   }
 
-  async updateRoom(roomId: string, userId: string, dto: UpdateRoomDto): Promise<Room> {
+  async updateRoom(
+    roomId: string,
+    userId: string,
+    dto: UpdateRoomDto,
+  ): Promise<Room> {
     const room = await this.findRoomById(roomId);
 
     // Verify ownership
     if (room.createdBy !== userId) {
-      throw new ForbiddenException('Only the room creator can update the room settings');
+      throw new ForbiddenException(
+        'Only the room creator can update the room settings',
+      );
     }
 
     // Apply updates

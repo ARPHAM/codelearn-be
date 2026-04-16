@@ -9,10 +9,14 @@ export class AiService {
   private model: any;
 
   constructor(private configService: ConfigService) {
-    const apiKey = this.configService.get<string>('GOOGLE_GENERATIVE_AI_API_KEY');
+    const apiKey = this.configService.get<string>(
+      'GOOGLE_GENERATIVE_AI_API_KEY',
+    );
     if (apiKey) {
       this.genAI = new GoogleGenerativeAI(apiKey);
-      this.model = this.genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+      this.model = this.genAI.getGenerativeModel({
+        model: 'gemini-flash-latest',
+      });
     }
   }
 
@@ -56,11 +60,11 @@ export class AiService {
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
-      
+
       // Extract JSON from response (Gemini might wrap it in markdown block)
       const jsonMatch = text.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error('Could not parse AI response as JSON');
-      
+
       return JSON.parse(jsonMatch[0]);
     } catch (error) {
       this.logger.error('Error generating learning path', error);
@@ -70,17 +74,17 @@ export class AiService {
 
   async getSuggestions(userContext: { solvedTags: string[] }) {
     if (!this.model) return [];
-    
+
     const prompt = `Dựa trên các kỹ năng sinh viên đang học: ${userContext.solvedTags.join(', ')}. Hãy gợi ý 3 mảng kiến thức tiếp theo sinh viên nên luyện tập. Trả về mảng string JSON.`;
-    
+
     try {
       const result = await this.model.generateContent(prompt);
       const text = result.response.text();
       const jsonMatch = text.match(/\[[\s\S]*\]/);
       return jsonMatch ? JSON.parse(jsonMatch[0]) : [];
     } catch (error) {
-       this.logger.error('Error getting suggestions', error);
-       return [];
+      this.logger.error('Error getting suggestions', error);
+      return [];
     }
   }
 
@@ -123,7 +127,9 @@ export class AiService {
       const response = await result.response;
       const text = response.text();
       const jsonMatch = text.match(/\{[\s\S]*\}/);
-      return jsonMatch ? JSON.parse(jsonMatch[0]) : { analysis: text, hint: '', followUp: '' };
+      return jsonMatch
+        ? JSON.parse(jsonMatch[0])
+        : { analysis: text, hint: '', followUp: '' };
     } catch (error) {
       this.logger.error('Error getting AI hint', error);
       return { hint: 'Không thể kết nối với AI vào lúc này.' };

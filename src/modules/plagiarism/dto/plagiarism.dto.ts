@@ -13,6 +13,8 @@ export class CheckPlagiarismDto {
 export class FlagPairDto {
   @ApiProperty() @IsNumber() submissionAId: number;
   @ApiProperty() @IsNumber() submissionBId: number;
-  @ApiProperty({ enum: ['warn', 'deduct', 'zero'] }) @IsEnum(['warn', 'deduct', 'zero']) action: string;
+  @ApiProperty({ enum: ['warn', 'deduct', 'zero'] })
+  @IsEnum(['warn', 'deduct', 'zero'])
+  action: string;
   @ApiProperty() @IsString() reason: string;
 }

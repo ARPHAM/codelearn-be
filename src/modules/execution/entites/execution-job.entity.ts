@@ -1,5 +1,10 @@
 import {
-  Entity, PrimaryColumn, Column, Index, ManyToOne, JoinColumn,
+  Entity,
+  PrimaryColumn,
+  Column,
+  Index,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { Submission } from '../../submission/entities/submission.entity';
 

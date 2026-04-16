@@ -1,6 +1,13 @@
 import {
-  Controller, Get, Post, Put, Body, Param, UseGuards, 
-  Patch, Query,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Body,
+  Param,
+  UseGuards,
+  Patch,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ProblemService } from './problem.service';
@@ -14,8 +21,8 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { User } from '../user/entities/user.entity';
 
-@ApiTags('Problems')
-@Controller('problems')
+@ApiTags('Problem')
+@Controller('problem')
 export class ProblemController {
   constructor(private readonly problemService: ProblemService) {}
 
@@ -30,8 +37,14 @@ export class ProblemController {
   @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.LECTURER, Role.ADMIN)
-  @ApiOperation({ summary: 'Lecturer updates a problem (creates a pending version)' })
-  update(@Param('id') id: string, @Body() dto: UpdateProblemDto, @CurrentUser() user: User) {
+  @ApiOperation({
+    summary: 'Lecturer updates a problem (creates a pending version)',
+  })
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateProblemDto,
+    @CurrentUser() user: User,
+  ) {
     return this.problemService.update(id, dto, user);
   }
 
@@ -46,8 +59,14 @@ export class ProblemController {
   @Get('lecturer/list')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.LECTURER, Role.ADMIN)
-  @ApiOperation({ summary: 'Lecturer sees standard info of ALL problems but with pagination and filters' })
-  findAllForLecturer(@Query() query: FilterProblemDto, @CurrentUser() user: User) {
+  @ApiOperation({
+    summary:
+      'Lecturer sees standard info of ALL problems but with pagination and filters',
+  })
+  findAllForLecturer(
+    @Query() query: FilterProblemDto,
+    @CurrentUser() user: User,
+  ) {
     return this.problemService.findAllForLecturer(query, user);
   }
 
@@ -66,7 +85,9 @@ export class ProblemController {
   }
 
   @Get(':slug')
-  @ApiOperation({ summary: 'Get published problem details for students (filtered)' })
+  @ApiOperation({
+    summary: 'Get published problem details for students (filtered)',
+  })
   findOneForStudent(@Param('slug') slug: string) {
     return this.problemService.findOneForStudent(slug);
   }
@@ -74,7 +95,9 @@ export class ProblemController {
   @Patch('admin/versions/:versionId/approve')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'Admin approves a problem version to make it official' })
+  @ApiOperation({
+    summary: 'Admin approves a problem version to make it official',
+  })
   approveVersion(@Param('versionId') versionId: string) {
     return this.problemService.approveVersion(versionId);
   }

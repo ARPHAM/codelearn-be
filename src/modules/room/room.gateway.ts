@@ -13,7 +13,10 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { RoomService } from './room.service';
 import { RoomRuntimeStore } from './room-runtime.store';
-import { WorkspaceService, WorkspaceEventType } from '../workspace/workspace.service';
+import {
+  WorkspaceService,
+  WorkspaceEventType,
+} from '../workspace/workspace.service';
 import { OnModuleInit } from '@nestjs/common';
 
 interface RoomState {
@@ -29,13 +32,14 @@ interface RoomState {
     credentials: true,
   },
 })
-export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit {
+export class RoomGateway
+  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit
+{
   @WebSocketServer()
   server: Server;
 
   // In-memory room state: roomId -> RoomState
   public readonly roomState = new Map<string, RoomState>();
-
 
   constructor(
     private readonly jwtService: JwtService,
@@ -48,9 +52,14 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   onModuleInit() {
     // Subscribe to workspace file events to broadcast them to the room
     this.workspaceService.fileEvents.subscribe(async (event) => {
-      const roomId = await this.roomService.getRoomIdByWorkspace(event.workspaceId);
+      const roomId = await this.roomService.getRoomIdByWorkspace(
+        event.workspaceId,
+      );
       if (roomId) {
-        const socketEvent = event.type === WorkspaceEventType.FILE_CREATED ? 'file_create' : 'file_delete';
+        const socketEvent =
+          event.type === WorkspaceEventType.FILE_CREATED
+            ? 'file_create'
+            : 'file_delete';
         this.server.to(roomId).emit(socketEvent, {
           userId: event.userId,
           workspaceId: event.workspaceId,
@@ -108,12 +117,15 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     return cookieString
       .split(';')
       .map((v) => v.split('='))
-      .reduce((acc, v) => {
-        const key = decodeURIComponent(v[0].trim());
-        const val = decodeURIComponent(v[1]?.trim() || '');
-        acc[key] = val;
-        return acc;
-      }, {} as Record<string, string>);
+      .reduce(
+        (acc, v) => {
+          const key = decodeURIComponent(v[0].trim());
+          const val = decodeURIComponent(v[1]?.trim() || '');
+          acc[key] = val;
+          return acc;
+        },
+        {} as Record<string, string>,
+      );
   }
 
   private async removeSocketFromRoom(
@@ -131,16 +143,19 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       if (state.hostSockets.size === 0) {
         const closingAt = Date.now() + 5 * 60 * 1000;
         this.runtimeStore.setClosing(roomId, closingAt);
-        
-        state.sessionTimeout = setTimeout(async () => {
-          await this.roomService.endSession(roomId);
-          this.server.to(roomId).emit('room_closed', { roomId });
-          this.server.in(roomId).disconnectSockets(true);
-        }, 5 * 60 * 1000);
 
-        this.server.to(roomId).emit('room_closing_in_5_minutes', { 
+        state.sessionTimeout = setTimeout(
+          async () => {
+            await this.roomService.endSession(roomId);
+            this.server.to(roomId).emit('room_closed', { roomId });
+            this.server.in(roomId).disconnectSockets(true);
+          },
+          5 * 60 * 1000,
+        );
+
+        this.server.to(roomId).emit('room_closing_in_5_minutes', {
           roomId,
-          closingAt
+          closingAt,
         });
       }
     }
@@ -152,14 +167,14 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       // If user has NO remaining sockets in room:
       if (userSockets.size === 0) {
         state.users.delete(userId);
-        
+
         // SYNC DB BEFORE EMIT: Actually REMOVE participant from DB to free the seat
         try {
           await this.roomService.leaveRoom(roomId, userId);
         } catch (e) {
           // Ignore if already removed
         }
-        
+
         client.to(roomId).emit('user_left', { userId });
       }
     }
@@ -180,7 +195,7 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   ) {
     const userId = client.data.user?.userId;
     if (!payload || !payload.roomId || !userId) return;
-    
+
     const { roomId } = payload;
     let participant;
 
@@ -197,9 +212,10 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     // CRITICAL: Block non-host users if no host is online
     if (participant.role !== 'HOST') {
       if (!state || state.hostSockets.size === 0) {
-        client.emit('error', { 
-          message: 'Room is strictly managed by host. Please wait for host to join online.',
-          code: 'HOST_OFFLINE'
+        client.emit('error', {
+          message:
+            'Room is strictly managed by host. Please wait for host to join online.',
+          code: 'HOST_OFFLINE',
         });
         return;
       }
@@ -217,13 +233,13 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
     if (participant.role === 'HOST') {
       state.hostSockets.add(client.id);
-      
+
       this.runtimeStore.clearClosing(roomId);
 
       if (state.sessionTimeout) {
         clearTimeout(state.sessionTimeout);
         state.sessionTimeout = undefined;
-        
+
         client.to(roomId).emit('room_active', { roomId });
         client.emit('room_active', { roomId });
       }
@@ -264,11 +280,12 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   @SubscribeMessage('code_change')
   async handleCodeChange(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { roomId: string; filePath: string; content: string },
+    @MessageBody()
+    payload: { roomId: string; filePath: string; content: string },
   ) {
     const userId = client.data.user?.userId;
     if (!payload || !payload.roomId || !payload.filePath || !userId) return;
-    
+
     const { roomId, filePath, content } = payload;
 
     // Validate filePath:
@@ -299,7 +316,10 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     if (!payload?.roomId || !userId) return;
 
     // Fast boolean check
-    const isParticipant = await this.roomService.isParticipant(payload.roomId, userId);
+    const isParticipant = await this.roomService.isParticipant(
+      payload.roomId,
+      userId,
+    );
     if (!isParticipant) return;
 
     // Broadcast to others in the room
@@ -318,7 +338,10 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     if (!payload?.roomId || !userId) return;
 
     // Fast boolean check
-    const isParticipant = await this.roomService.isParticipant(payload.roomId, userId);
+    const isParticipant = await this.roomService.isParticipant(
+      payload.roomId,
+      userId,
+    );
     if (!isParticipant) return;
 
     // Broadcast to others in the room
@@ -335,7 +358,7 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   ) {
     const userId = client.data.user?.userId;
     if (!payload || !payload.roomId || !userId) return;
-    
+
     const { roomId, filePath } = payload;
 
     // Fast boolean check
@@ -351,7 +374,8 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   @SubscribeMessage('request_user_code')
   async handleRequestUserCode(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { roomId: string; targetUserId: string; filePath: string },
+    @MessageBody()
+    payload: { roomId: string; targetUserId: string; filePath: string },
   ) {
     const userId = client.data.user?.userId;
     if (!payload?.roomId || !payload?.targetUserId || !userId) return;
@@ -375,7 +399,13 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   @SubscribeMessage('respond_user_code')
   async handleRespondUserCode(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { roomId: string; requesterId: string; filePath: string; content: string },
+    @MessageBody()
+    payload: {
+      roomId: string;
+      requesterId: string;
+      filePath: string;
+      content: string;
+    },
   ) {
     const userId = client.data.user?.userId;
     if (!payload?.roomId || !payload?.requesterId || !userId) return;

@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { UserSkillNode } from './entities/user-skill-node.entity';
 import { Problem } from '../problem/entities/problem.entity';
 import { Submission } from '../submission/entities/submission.entity';
-import { AiService } from '../../shared/services/ai.service';
+import { AiService } from '../ai/ai.service';
 
 @Injectable()
 export class LearningPathService {
@@ -31,7 +31,7 @@ export class LearningPathService {
     }
 
     return {
-      nodes: nodes.map(n => ({
+      nodes: nodes.map((n) => ({
         id: n.id,
         title: n.title,
         tag: n.tag,
@@ -52,8 +52,15 @@ export class LearningPathService {
         relations: ['problemVersion', 'problemVersion.problem'],
       });
 
-      const solvedTags = [...new Set(solvedSubmissions.map(s => s.problemVersion.problem.tags || []).flat().filter(Boolean))];
-      
+      const solvedTags = [
+        ...new Set(
+          solvedSubmissions
+            .map((s) => s.problemVersion.problem.tags || [])
+            .flat()
+            .filter(Boolean),
+        ),
+      ];
+
       // 2. Generate path via AI
       const aiNodes = await this.aiService.generateLearningPath({
         fullName: 'Sinh viên', // Mock
@@ -67,7 +74,7 @@ export class LearningPathService {
 
       // 4. Save new nodes (handle parent mapping)
       const idMap = new Map<string, string>();
-      
+
       // Save all nodes first to get IDs
       for (const aiNode of aiNodes) {
         const newNode = this.userSkillRepo.create({
@@ -96,7 +103,10 @@ export class LearningPathService {
 
       return this.userSkillRepo.find({ where: { userId } });
     } catch (error) {
-      this.logger.error(`Failed to refresh learning path for user ${userId}`, error);
+      this.logger.error(
+        `Failed to refresh learning path for user ${userId}`,
+        error,
+      );
       return [];
     }
   }
@@ -106,21 +116,29 @@ export class LearningPathService {
       where: { user: { id: userId }, status: 'ACCEPTED' },
       relations: ['problemVersion', 'problemVersion.problem'],
     });
-    const solvedTags = [...new Set(solvedSubmissions.map(s => s.problemVersion.problem.tags || []).flat().filter(Boolean))];
+    const solvedTags = [
+      ...new Set(
+        solvedSubmissions
+          .map((s) => s.problemVersion.problem.tags || [])
+          .flat()
+          .filter(Boolean),
+      ),
+    ];
 
     const aiSuggestions = await this.aiService.getSuggestions({ solvedTags });
-    
+
     // Find problems matching the suggested tags
     let suggestedProblems: Problem[] = [];
     if (aiSuggestions.length > 0) {
-      suggestedProblems = await this.problemRepo.createQueryBuilder('p')
-         .where('p.tags && :tags', { tags: aiSuggestions })
-         .limit(limit)
-         .getMany();
+      suggestedProblems = await this.problemRepo
+        .createQueryBuilder('p')
+        .where('p.tags && :tags', { tags: aiSuggestions })
+        .limit(limit)
+        .getMany();
     }
 
     return {
-      suggestions: suggestedProblems.map(p => ({
+      suggestions: suggestedProblems.map((p) => ({
         problemId: p.id,
         title: p.title,
         tag: p.tags?.[0] || 'Chung',

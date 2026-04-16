@@ -10,7 +10,10 @@ export enum ProblemFilterType {
 }
 
 export class FilterProblemDto {
-  @ApiPropertyOptional({ enum: ProblemFilterType, default: ProblemFilterType.ALL })
+  @ApiPropertyOptional({
+    enum: ProblemFilterType,
+    default: ProblemFilterType.ALL,
+  })
   @IsEnum(ProblemFilterType)
   @IsOptional()
   filter?: ProblemFilterType = ProblemFilterType.ALL;

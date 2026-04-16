@@ -13,9 +13,22 @@ import { HealthService } from './health.service';
 import { ExecutionJob } from '../execution/entites/execution-job.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Language, SystemSetting, AuditLog, ExecutionJob])],
+  imports: [
+    TypeOrmModule.forFeature([
+      User,
+      Language,
+      SystemSetting,
+      AuditLog,
+      ExecutionJob,
+    ]),
+  ],
   controllers: [AdminController, LanguagesController],
-  providers: [AdminService, LanguagesService, SystemSettingsService, HealthService],
+  providers: [
+    AdminService,
+    LanguagesService,
+    SystemSettingsService,
+    HealthService,
+  ],
   exports: [LanguagesService, SystemSettingsService, TypeOrmModule],
 })
 export class AdminModule {}

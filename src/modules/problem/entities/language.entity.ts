@@ -20,11 +20,11 @@ export class Language {
   @Column({ name: 'template', type: 'text', nullable: true })
   template: string;
 
-  @Column({ 
-    name: 'image_status', 
-    type: 'varchar', 
+  @Column({
+    name: 'image_status',
+    type: 'varchar',
     default: 'READY',
-    comment: 'READY, PULLING, ERROR' 
+    comment: 'READY, PULLING, ERROR',
   })
   imageStatus: string;
 

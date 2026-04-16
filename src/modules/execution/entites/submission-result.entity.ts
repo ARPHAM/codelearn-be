@@ -1,5 +1,10 @@
 import {
-  Entity, Column, ManyToOne, JoinColumn, Index, PrimaryGeneratedColumn,
+  Entity,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  Index,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Submission } from '../../submission/entities/submission.entity';
 import { Testcase } from '../../problem/entities/testcase.entity';
@@ -7,7 +12,6 @@ import { Testcase } from '../../problem/entities/testcase.entity';
 @Entity('submission_results')
 @Index(['submission', 'testcase'], { unique: true })
 export class SubmissionResult {
-
   @PrimaryGeneratedColumn()
   id: number;
 

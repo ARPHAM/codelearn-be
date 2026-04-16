@@ -4,7 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { UserSkillNode } from './entities/user-skill-node.entity';
 import { Problem } from '../problem/entities/problem.entity';
 import { Submission } from '../submission/entities/submission.entity';
-import { AiService } from '../../shared/services/ai.service';
+import { AiService } from '../ai/ai.service';
 
 describe('LearningPathService', () => {
   let service: LearningPathService;

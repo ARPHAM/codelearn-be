@@ -14,11 +14,7 @@ import { Req } from '@nestjs/common';
 
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import {
-  LoginDto,
-  RegisterDto,
-  ForgotPasswordDto,
-} from './dto/auth.dto';
+import { LoginDto, RegisterDto, ForgotPasswordDto } from './dto/auth.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '../user/entities/user.entity';
@@ -69,10 +65,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Huỷ phiên đăng nhập' })
-  logout(
-    @Res({ passthrough: true }) res: Response,
-  ) {
-
+  logout(@Res({ passthrough: true }) res: Response) {
     const isProd = process.env.NODE_ENV === 'production';
 
     res.clearCookie('accessToken', {

@@ -1,8 +1,13 @@
 import {
-  Entity, Column,
-  ManyToOne, JoinColumn, Index,
-  PrimaryGeneratedColumn, OneToOne,
-  CreateDateColumn, UpdateDateColumn,
+  Entity,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  Index,
+  PrimaryGeneratedColumn,
+  OneToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import { ProblemStats } from './problem-stats.entity';
