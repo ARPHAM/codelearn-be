@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { Problem } from './entities/problem.entity';
 import { ProblemVersion } from './entities/problem-version.entity';
 import { Testcase } from './entities/testcase.entity';
@@ -17,6 +17,8 @@ import { FilterProblemDto, ProblemFilterType } from './dto/filter-problem.dto';
 import { User } from '../user/entities/user.entity';
 import { Role } from '../../common/enums/role.enum';
 import { v4 as uuidv4 } from 'uuid';
+import { AssignmentProblem } from '../assignment/entities/assignment-problem.entity';
+import { standardizeDescription } from './utils/description.util';
 
 @Injectable()
 export class ProblemService {
@@ -29,6 +31,8 @@ export class ProblemService {
     private langFileRepo: Repository<ProblemLanguageFile>,
     @InjectRepository(ProblemFile) private fileRepo: Repository<ProblemFile>,
     @InjectRepository(ProblemStats) private statsRepo: Repository<ProblemStats>,
+    @InjectRepository(AssignmentProblem)
+    private assignmentProblemRepo: Repository<AssignmentProblem>,
   ) {}
 
   async create(dto: CreateProblemDto, user: User) {
@@ -50,8 +54,9 @@ export class ProblemService {
     const version = this.versionRepo.create({
       id: versionId,
       problem: savedProblem,
-      description: dto.description,
+      description: standardizeDescription(dto.description),
       workspaceConfig: dto.workspaceConfig,
+      entryFile: dto.entryFile,
       status: dto.status || 'PENDING', // PENDING for admin approval, DRAFT otherwise
       createdBy: user,
     });
@@ -78,7 +83,8 @@ export class ProblemService {
       const langFilesToSave = dto.languageFiles.map((lf) =>
         this.langFileRepo.create({
           problem: savedProblem,
-          language: { id: lf.languageId } as any, // assuming language relation just needs ID
+          problemVersion: version,
+          language: { id: lf.languageId } as any,
           path: lf.path,
           content: lf.content,
           type: lf.type,
@@ -115,12 +121,58 @@ export class ProblemService {
     };
   }
 
-  // Admin sees everything
-  async findAllForAdmin() {
-    const [items, total] = await this.problemRepo.findAndCount({
-      relations: ['createdBy'],
-    });
-    return { items, total, page: 1, limit: items.length };
+  // Admin sees everything with filters and pagination
+  async findAllForAdmin(query: FilterProblemDto) {
+    const qb = this.problemRepo
+      .createQueryBuilder('problem')
+      .leftJoinAndSelect('problem.createdBy', 'createdBy')
+      .leftJoinAndSelect('problem.stats', 'stats');
+
+    if (query.search) {
+      qb.andWhere(
+        '(problem.title ILIKE :search OR problem.slug ILIKE :search)',
+        { search: `%${query.search}%` },
+      );
+    }
+
+    if (query.authorId) {
+      qb.andWhere('problem.created_by = :authorId', {
+        authorId: query.authorId,
+      });
+    }
+
+    if (query.difficulty) {
+      qb.andWhere('problem.difficulty = :difficulty', {
+        difficulty: query.difficulty,
+      });
+    }
+
+    if (query.status) {
+      qb.andWhere('problem.status = :status', { status: query.status });
+    }
+
+    if (query.courseId) {
+      qb.innerJoin(
+        AssignmentProblem,
+        'ap',
+        'ap.problem_id = problem.id',
+      ).andWhere('ap.course_id = :courseId', { courseId: query.courseId });
+    }
+
+    qb.orderBy('problem.createdAt', 'DESC');
+
+    const total = await qb.getCount();
+    const items = await qb
+      .skip(((query.page || 1) - 1) * (query.limit || 10))
+      .take(query.limit || 10)
+      .getMany();
+
+    return {
+      items,
+      total,
+      page: query.page,
+      limit: query.limit,
+    };
   }
 
   // Lecturer sees standard info of ALL problems but with pagination and filters
@@ -137,7 +189,33 @@ export class ProblemService {
     } else if (query.filter === ProblemFilterType.PRIVATE) {
       qb.andWhere('problem.visibility = :private', { private: 'PRIVATE' });
     }
-    // If ALL, no visibility/owner filter is applied, meaning they see basics of everything.
+
+    // Security check: Lecturers can only see other lecturers' problems if they are ACTIVE.
+    // They can always see their own problems (including INACTIVE/PENDING).
+    const isAdmin = user.role === Role.ADMIN;
+    qb.andWhere(
+      '(problem.status = :activeStatus OR problem.created_by = :userId OR :isAdmin = true)',
+      { activeStatus: 'ACTIVE', userId: user.id, isAdmin },
+    );
+
+    if (query.difficulty) {
+      qb.andWhere('problem.difficulty = :difficulty', {
+        difficulty: query.difficulty,
+      });
+    }
+
+    if (query.status) {
+      qb.andWhere('problem.status = :status', { status: query.status });
+    }
+
+    if (query.courseId) {
+      qb.innerJoin(
+        AssignmentProblem,
+        'ap',
+        'ap.problem.id = problem.id',
+      ).innerJoin('ap.assignment', 'a');
+      qb.andWhere('a.course.id = :courseId', { courseId: query.courseId });
+    }
 
     if (query.search) {
       qb.andWhere(
@@ -153,7 +231,6 @@ export class ProblemService {
 
     const [items, total] = await qb.getManyAndCount();
 
-    // Map items to mask some details if necessary, but returning basic item is fine
     return { items, total, page, limit };
   }
 
@@ -220,10 +297,19 @@ export class ProblemService {
       });
     }
 
-    const languageFiles = await this.langFileRepo.find({
-      where: { problem: { id } },
-      relations: ['language'],
-    });
+    // Fetch language files: prioritize version-linked files, fallback to old unversioned files only if No versions exist
+    let languageFiles: ProblemLanguageFile[] = [];
+    if (currentVersion) {
+      languageFiles = await this.langFileRepo.find({
+        where: { problemVersion: { id: currentVersion.id } },
+        relations: ['language'],
+      });
+    } else {
+      languageFiles = await this.langFileRepo.find({
+        where: { problem: { id }, problemVersion: IsNull() },
+        relations: ['language'],
+      });
+    }
 
     return {
       problem,
@@ -231,6 +317,7 @@ export class ProblemService {
       testcases,
       languageFiles,
       problemFiles,
+      entryFile: currentVersion?.entryFile,
       canEdit,
     };
   }
@@ -255,6 +342,13 @@ export class ProblemService {
     problem.type = dto.type;
     problem.visibility = dto.visibility;
     if (dto.source) problem.source = dto.source;
+
+    // Only set to PENDING if currently INACTIVE or REJECTED
+    // If it's already ACTIVE, keep it ACTIVE so students can still access the old version
+    if (problem.status === 'INACTIVE' || problem.status === 'REJECTED') {
+      problem.status = 'PENDING';
+    }
+
     await this.problemRepo.save(problem);
 
     // 2. Create a NEW Version (PENDING)
@@ -266,8 +360,9 @@ export class ProblemService {
     const version = this.versionRepo.create({
       id: versionId,
       problem: problem,
-      description: dto.description,
+      description: standardizeDescription(dto.description),
       workspaceConfig: dto.workspaceConfig,
+      entryFile: dto.entryFile,
       status: 'PENDING', // Editing always requires re-approval
       createdBy: user,
     });
@@ -289,13 +384,12 @@ export class ProblemService {
       await this.testcaseRepo.save(testcasesToSave);
     }
 
-    // 4. Update Language Files (overwrite for the problem)
-    // Delete existing language files for this problem and insert new ones
-    await this.langFileRepo.delete({ problem: { id } });
+    // Associate language files with this new version
     if (dto.languageFiles?.length) {
       const langFilesToSave = dto.languageFiles.map((lf) =>
         this.langFileRepo.create({
           problem: problem,
+          problemVersion: version,
           language: { id: lf.languageId } as any,
           path: lf.path,
           content: lf.content,
@@ -327,16 +421,36 @@ export class ProblemService {
   }
 
   // View for Student (No hidden testcases, no solution code)
-  async findOneForStudent(slug: string) {
+  async findOneForStudent(slug: string, user?: User) {
     const problem = await this.problemRepo.findOne({
-      where: { slug, visibility: 'PUBLIC', status: 'ACTIVE' },
+      where: { slug },
+      relations: ['createdBy'],
     });
-    if (!problem)
-      throw new NotFoundException('Problem not found or not public');
 
-    const versionId = problem.currentVersionId;
+    if (!problem) throw new NotFoundException('Problem not found');
+
+    const isPublicAndActive =
+      problem.visibility === 'PUBLIC' && problem.status === 'ACTIVE';
+    const isOwner = user && problem.createdBy.id === user.id;
+    const isAdmin = user && user.role === Role.ADMIN;
+
+    if (!isPublicAndActive && !isOwner && !isAdmin) {
+      throw new NotFoundException('Problem not found or not public');
+    }
+
+    let versionId: string | null | undefined = problem.currentVersionId;
+
+    // If no official version but requester is authorized, use the latest draft version
+    if (!versionId && (isOwner || isAdmin)) {
+      const latestVersion = await this.versionRepo.findOne({
+        where: { problem: { id: problem.id } },
+        order: { createdAt: 'DESC' },
+      });
+      versionId = latestVersion?.id;
+    }
+
     if (!versionId)
-      throw new NotFoundException('Problem has no active version');
+      throw new NotFoundException('Bài tập chưa có phiên bản chính thức hoặc nháp');
 
     const version = await this.versionRepo.findOne({
       where: { id: versionId },
@@ -351,11 +465,26 @@ export class ProblemService {
       where: { problemVersion: { id: versionId }, isHidden: false },
     });
 
-    // Only fetch template language files
-    const templateFiles = await this.langFileRepo.find({
-      where: { problem: { id: problem.id }, type: 'TEMPLATE' },
-      relations: ['language'],
-    });
+    // Fetch template language files: exclusive search to prevent duplication
+    let templateFiles: ProblemLanguageFile[] = [];
+    if (versionId) {
+      templateFiles = await this.langFileRepo.find({
+        where: { problemVersion: { id: versionId }, type: 'TEMPLATE' },
+        relations: ['language'],
+      });
+    }
+
+    // Fallback if no files found for the version (legacy data)
+    if (templateFiles.length === 0) {
+      templateFiles = await this.langFileRepo.find({
+        where: {
+          problem: { id: problem.id },
+          problemVersion: IsNull(),
+          type: 'TEMPLATE',
+        },
+        relations: ['language'],
+      });
+    }
 
     const problemFiles = await this.fileRepo.find({
       where: { problemVersion: { id: versionId } },
@@ -368,7 +497,12 @@ export class ProblemService {
       difficulty: problem.difficulty,
       type: problem.type,
       stats: stats,
-      version: { id: version.id, description: version.description },
+      version: { 
+        id: version.id, 
+        description: version.description,
+        workspaceConfig: version.workspaceConfig,
+        entryFile: version.entryFile
+      },
       testcases: publicTestcases,
       languageFiles: templateFiles,
       files: problemFiles,
@@ -393,5 +527,41 @@ export class ProblemService {
     await this.problemRepo.save(problem);
 
     return { message: 'Version approved successfully', problemId: problem.id };
+  }
+
+  // Admin rejects a version
+  async rejectVersion(versionId: string) {
+    const version = await this.versionRepo.findOne({
+      where: { id: versionId },
+      relations: ['problem'],
+    });
+    if (!version) throw new NotFoundException('Version not found');
+
+    version.status = 'REJECTED';
+    await this.versionRepo.save(version);
+
+    // If the problem was pointing to this version as current, we might want to reconsider its status.
+    // However, usually only pending (INACTIVE) problems get rejected.
+    const problem = version.problem;
+    if (problem.currentVersionId === version.id || problem.status === 'INACTIVE') {
+      problem.status = 'REJECTED';
+      await this.problemRepo.save(problem);
+    }
+
+    return { message: 'Version rejected successfully', problemId: problem.id };
+  }
+
+  /**
+   * Lấy danh sách các tác giả đã từng tạo bài tập (bao gồm cả Admin và Lecturer)
+   */
+  async findAllAuthors() {
+    // Sử dụng repository của User để lấy dữ liệu User trực tiếp, join với Problem để lọc ra những người có bài tập
+    return await this.problemRepo.manager
+      .getRepository(User)
+      .createQueryBuilder('user')
+      .innerJoin(Problem, 'problem', 'problem.created_by = user.id')
+      .select(['user.id', 'user.fullName', 'user.email', 'user.avatarUrl'])
+      .distinct(true)
+      .getMany();
   }
 }

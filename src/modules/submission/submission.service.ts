@@ -18,6 +18,8 @@ import {
 } from './dto/submission.dto';
 import { SubmissionStatus } from '../../shared/enums/submission-status.enum';
 import { Role } from '../../common/enums/role.enum';
+import { ProblemLanguageFile } from '../problem/entities/problem-language-file.entity';
+import { fillTemplate } from '../problem/utils/template.util';
 
 @Injectable()
 export class SubmissionService {
@@ -27,6 +29,8 @@ export class SubmissionService {
     @InjectRepository(ProblemVersion)
     private problemVersionRepo: Repository<ProblemVersion>,
     @InjectRepository(Language) private languageRepo: Repository<Language>,
+    @InjectRepository(ProblemLanguageFile)
+    private langFileRepository: Repository<ProblemLanguageFile>,
     @InjectQueue('code-execution') private submissionQueue: Queue,
   ) {}
 
@@ -41,13 +45,42 @@ export class SubmissionService {
     const timeLimit = (problem as any).timeLimit;
     const memoryLimit = (problem as any).memoryLimit;
 
-    // Assuming language string mapped to Language entity ID earlier, here we fetch a dummy language ID for compilation fallback
-    const language = await this.languageRepo.findOne({
-      where: { name: dto.language },
-    });
+    // Tìm kiếm ngôn ngữ không phân biệt chữ hoa chữ thường
+    const languages = await this.languageRepo.find();
+    const language = languages.find(l => 
+      l.name.toLowerCase() === dto.language.toLowerCase() ||
+      l.ext.toLowerCase() === (dto.language.startsWith('.') ? dto.language.toLowerCase() : '.' + dto.language.toLowerCase())
+    );
+    
     if (!language) throw new NotFoundException('Ngon ngu khong ho tro');
 
-    const entryFile = dto.files.find((f) => f.filePath === dto.entryFile);
+    // Resolve code with FITB support
+    let finalFiles = dto.files || [];
+    if (dto.answers && dto.problemVersionId) {
+      const templateFiles = await this.langFileRepository.find({
+        where: {
+          problemVersion: { id: dto.problemVersionId },
+          type: 'TEMPLATE',
+        },
+      });
+
+      for (const tFile of templateFiles) {
+        const fileAnswers = dto.answers[tFile.path];
+        if (fileAnswers) {
+          const filledContent = fillTemplate(tFile.content, fileAnswers);
+          const existingIdx = finalFiles.findIndex(
+            (f) => f.filePath === tFile.path,
+          );
+          if (existingIdx !== -1) {
+            finalFiles[existingIdx].content = filledContent;
+          } else {
+            finalFiles.push({ filePath: tFile.path, content: filledContent });
+          }
+        }
+      }
+    }
+
+    const entryFile = finalFiles.find((f) => f.filePath === dto.entryFile);
     if (!entryFile) {
       throw new NotFoundException('Khong tim thay file main / entry');
     }
@@ -59,7 +92,7 @@ export class SubmissionService {
 
       code: JSON.stringify({
         entryFile: dto.entryFile,
-        files: dto.files,
+        files: finalFiles,
       }),
 
       status: SubmissionStatus.QUEUED,
@@ -73,7 +106,7 @@ export class SubmissionService {
       submissionId: saved.id,
       language: dto.language,
       problemVersionId: dto.problemVersionId,
-      files: dto.files.map((f) => ({
+      files: finalFiles.map((f) => ({
         filePath: f.filePath,
         content: f.content,
       })),

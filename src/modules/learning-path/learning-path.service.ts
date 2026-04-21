@@ -129,7 +129,7 @@ export class LearningPathService {
 
     // Find problems matching the suggested tags
     let suggestedProblems: Problem[] = [];
-    if (aiSuggestions.length > 0) {
+    if (aiSuggestions && aiSuggestions.length > 0) {
       suggestedProblems = await this.problemRepo
         .createQueryBuilder('p')
         .where('p.tags && :tags', { tags: aiSuggestions })

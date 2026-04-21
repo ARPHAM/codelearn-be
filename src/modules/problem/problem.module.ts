@@ -10,6 +10,7 @@ import { Language } from './entities/language.entity';
 import { ProblemLanguageFile } from './entities/problem-language-file.entity';
 import { ProblemFile } from './entities/problem-file.entity';
 import { ProblemStats } from './entities/problem-stats.entity';
+import { AssignmentProblem } from '../assignment/entities/assignment-problem.entity';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ProblemStats } from './entities/problem-stats.entity';
       ProblemLanguageFile,
       ProblemFile,
       ProblemStats,
+      AssignmentProblem,
     ]),
   ],
   controllers: [ProblemController],

@@ -14,6 +14,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { User } from '../user/entities/user.entity';
 
 @ApiTags('Analytics & Dashboard')
 @ApiBearerAuth()
@@ -26,8 +28,8 @@ export class AnalyticsController {
   @UseGuards(RolesGuard)
   @Roles(Role.LECTURER, Role.ADMIN)
   @ApiOperation({ summary: 'Dashboard tổng quan khoá học' })
-  getCourseAnalytics(@Param('courseId') courseId: string) {
-    return this.analyticsService.getCourseAnalytics(courseId);
+  getCourseAnalytics(@Param('courseId') courseId: string, @CurrentUser() user: User) {
+    return this.analyticsService.getCourseAnalytics(courseId, user);
   }
 
   @Get('student/:studentId')
@@ -40,8 +42,8 @@ export class AnalyticsController {
   @UseGuards(RolesGuard)
   @Roles(Role.LECTURER, Role.ADMIN)
   @ApiOperation({ summary: 'Dashboard tổng quan giảng viên' })
-  getLecturerDashboard() {
-    return this.analyticsService.getLecturerDashboard();
+  getLecturerDashboard(@CurrentUser() user: User) {
+    return this.analyticsService.getLecturerDashboard(user);
   }
 }
 

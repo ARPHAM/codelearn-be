@@ -13,6 +13,8 @@ import { ProblemVersion } from '../problem/entities/problem-version.entity';
 import { Problem } from '../problem/entities/problem.entity';
 import { Testcase } from '../problem/entities/testcase.entity';
 import { SubmissionStatus } from '../../shared/enums/submission-status.enum';
+import { ProblemLanguageFile } from '../problem/entities/problem-language-file.entity';
+import { fillTemplate } from '../problem/utils/template.util';
 
 @Injectable()
 export class RunService {
@@ -23,6 +25,8 @@ export class RunService {
     private problemVersionRepository: Repository<ProblemVersion>,
     @InjectRepository(Testcase)
     private testcaseRepository: Repository<Testcase>,
+    @InjectRepository(ProblemLanguageFile)
+    private langFileRepository: Repository<ProblemLanguageFile>,
     @InjectQueue('code-execution') private codeQueue: Queue,
   ) {}
 
@@ -66,16 +70,40 @@ export class RunService {
       );
     }
 
-    // Resolve code to store in DB
-    const finalCode = dto.files ? JSON.stringify(dto.files) : dto.code || '';
+    // Resolve code to store in DB 
+    let finalFiles = dto.files || [];
+    let finalCode = dto.code || '';
+
+    // Nếu có answers từ FITB mode, thực hiện ghép code tại Backend
+    if (dto.answers && dto.problemVersionId) {
+      const templateFiles = await this.langFileRepository.find({
+        where: { problemVersion: { id: dto.problemVersionId }, type: 'TEMPLATE' },
+      });
+
+      for (const tFile of templateFiles) {
+        const fileAnswers = dto.answers[tFile.path];
+        if (fileAnswers) {
+          const filledContent = fillTemplate(tFile.content, fileAnswers);
+          // Thay thế hoặc thêm vào finalFiles
+          const existingIdx = finalFiles.findIndex(f => f.filePath === tFile.path);
+          if (existingIdx !== -1) {
+            finalFiles[existingIdx].content = filledContent;
+          } else {
+            finalFiles.push({ filePath: tFile.path, content: filledContent });
+          }
+        }
+      }
+    }
+
+    const finalCodeString = finalFiles.length > 0 ? JSON.stringify(finalFiles) : finalCode;
     const entryFile =
       dto.entryFile ||
-      (dto.files && dto.files.length > 0 ? dto.files[0].filePath : '');
+      (finalFiles.length > 0 ? finalFiles[0].filePath : '');
 
     const runExecution = this.runExecutionRepository.create({
       userId,
       problemVersionId,
-      languageId,
+      languageId: dto.languageId,
       code: finalCode,
       input: runInput,
       status: SubmissionStatus.QUEUED,
@@ -85,9 +113,9 @@ export class RunService {
 
     await this.codeQueue.add('run_job', {
       runId: runExecution.id,
-      languageId,
-      code: dto.code,
-      files: dto.files,
+      languageId: dto.languageId,
+      code: finalCode, // use filled code
+      files: finalFiles, // use filled files
       entryFile,
       input: runInput,
       problemVersionId,

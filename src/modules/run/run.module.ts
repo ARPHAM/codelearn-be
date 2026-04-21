@@ -7,6 +7,7 @@ import { RunExecution } from './entities/run-execution.entity';
 import { ProblemVersion } from '../problem/entities/problem-version.entity';
 import { Testcase } from '../problem/entities/testcase.entity';
 import { Language } from '../problem/entities/language.entity';
+import { ProblemLanguageFile } from '../problem/entities/problem-language-file.entity';
 import { RunProcessor } from './run.processor';
 import { ExecutionModule } from '../execution/execution.module';
 import { AdminModule } from '../admin/admin.module';
@@ -18,6 +19,7 @@ import { AdminModule } from '../admin/admin.module';
       ProblemVersion,
       Testcase,
       Language,
+      ProblemLanguageFile,
     ]),
     ExecutionModule,
     AdminModule,

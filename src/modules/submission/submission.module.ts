@@ -7,13 +7,20 @@ import { Submission } from './entities/submission.entity';
 import { ProblemVersion } from '../problem/entities/problem-version.entity';
 import { Language } from '../problem/entities/language.entity';
 import { Testcase } from '../problem/entities/testcase.entity';
+import { ProblemLanguageFile } from '../problem/entities/problem-language-file.entity';
 import { SubmissionProcessor } from './submission.processor';
 import { ExecutionModule } from '../execution/execution.module';
 import { AdminModule } from '../admin/admin.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Submission, ProblemVersion, Language, Testcase]),
+    TypeOrmModule.forFeature([
+      Submission,
+      ProblemVersion,
+      Language,
+      Testcase,
+      ProblemLanguageFile,
+    ]),
     ExecutionModule,
     AdminModule,
     BullModule.registerQueue({

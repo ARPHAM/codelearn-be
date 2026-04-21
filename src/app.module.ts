@@ -27,6 +27,7 @@ import { RoomModule } from './modules/room/room.module';
 import { ProblemModule } from './modules/problem/problem.module';
 import { BankModule } from './modules/bank/bank.module';
 import { AiModule } from './modules/ai/ai.module';
+import { UserModule } from './modules/user/user.module';
 
 // Entities
 import { User } from './modules/user/entities/user.entity';
@@ -179,6 +180,7 @@ const ALL_ENTITIES = [
     LeaderboardModule,
     BankModule,
     AiModule,
+    UserModule,
   ],
   providers: [
     {

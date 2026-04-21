@@ -15,6 +15,7 @@ import { CreateProblemDto } from './dto/create-problem.dto';
 import { UpdateProblemDto } from './dto/update-problem.dto';
 import { FilterProblemDto } from './dto/filter-problem.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -25,6 +26,12 @@ import { User } from '../user/entities/user.entity';
 @Controller('problem')
 export class ProblemController {
   constructor(private readonly problemService: ProblemService) {}
+
+  @Get('authors')
+  @ApiOperation({ summary: 'Get list of unique authors who created problems' })
+  findAllAuthors() {
+    return this.problemService.findAllAuthors();
+  }
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -51,9 +58,9 @@ export class ProblemController {
   @Get('admin/list')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'Admin sees all problems' })
-  findAllForAdmin() {
-    return this.problemService.findAllForAdmin();
+  @ApiOperation({ summary: 'Admin sees all problems with filters' })
+  findAllForAdmin(@Query() query: FilterProblemDto) {
+    return this.problemService.findAllForAdmin(query);
   }
 
   @Get('lecturer/list')
@@ -85,11 +92,15 @@ export class ProblemController {
   }
 
   @Get(':slug')
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({
     summary: 'Get published problem details for students (filtered)',
   })
-  findOneForStudent(@Param('slug') slug: string) {
-    return this.problemService.findOneForStudent(slug);
+  findOneForStudent(
+    @Param('slug') slug: string,
+    @CurrentUser() user?: User,
+  ) {
+    return this.problemService.findOneForStudent(slug, user);
   }
 
   @Patch('admin/versions/:versionId/approve')
@@ -100,5 +111,15 @@ export class ProblemController {
   })
   approveVersion(@Param('versionId') versionId: string) {
     return this.problemService.approveVersion(versionId);
+  }
+
+  @Patch('admin/versions/:versionId/reject')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiOperation({
+    summary: 'Admin rejects a problem version',
+  })
+  rejectVersion(@Param('versionId') versionId: string) {
+    return this.problemService.rejectVersion(versionId);
   }
 }

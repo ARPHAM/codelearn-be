@@ -24,6 +24,9 @@ export class ProblemVersion {
 
   @Column({ type: 'jsonb', nullable: true, name: 'workspace_config' })
   workspaceConfig: any;
+  
+  @Column({ type: 'varchar', nullable: true, name: 'entry_file' })
+  entryFile: string;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'created_by' })

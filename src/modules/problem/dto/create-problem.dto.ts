@@ -108,6 +108,11 @@ export class CreateProblemDto {
   @IsOptional()
   workspaceConfig?: any;
 
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  entryFile?: string;
+
   @ApiProperty({ type: [TestCaseDto] })
   @IsArray()
   @ValidateNested({ each: true })

@@ -20,7 +20,7 @@ export class RunFileDto {
 }
 
 export class CreateRunDto {
-  @IsUUID()
+  @IsString()
   @IsOptional()
   problemVersionId?: string;
 
@@ -45,4 +45,7 @@ export class CreateRunDto {
   @IsString()
   @IsOptional()
   input?: string;
+
+  @IsOptional()
+  answers?: Record<string, string[]>;
 }

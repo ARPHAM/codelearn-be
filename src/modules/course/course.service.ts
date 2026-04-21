@@ -72,4 +72,30 @@ export class CourseService {
     const saved = await this.enrollRepo.save(enrollment);
     return { message: 'Dang ky thanh cong', enrollmentId: saved.id };
   }
+
+  async getMyCourses(user: User) {
+    if (user.role === Role.LECTURER) {
+      return this.courseRepo.find({
+        where: { lecturer: { id: user.id } },
+        order: { createdAt: 'DESC' },
+      });
+    }
+
+    if (user.role === Role.STUDENT) {
+      const enrollments = await this.enrollRepo.find({
+        where: { user: { id: user.id } },
+        relations: ['course'],
+        order: { createdAt: 'DESC' },
+      });
+      return enrollments.map((e) => e.course);
+    }
+
+    if (user.role === Role.ADMIN) {
+      return this.courseRepo.find({
+        order: { createdAt: 'DESC' },
+      });
+    }
+
+    return [];
+  }
 }

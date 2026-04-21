@@ -23,6 +23,26 @@ export class FilterProblemDto {
   @IsOptional()
   search?: string;
 
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  difficulty?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  status?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  courseId?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  authorId?: string;
+
   @ApiPropertyOptional({ default: 1 })
   @Type(() => Number)
   @IsInt()

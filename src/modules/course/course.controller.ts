@@ -31,6 +31,12 @@ export class CourseController {
     return this.courseService.findAll(query);
   }
 
+  @Get('me')
+  @ApiOperation({ summary: 'Lay danh sach khoa hoc cua toi (Giang vien/Sinh vien)' })
+  getMyCourses(@CurrentUser() user: User) {
+    return this.courseService.getMyCourses(user);
+  }
+
   @Get(':id/students')
   @UseGuards(RolesGuard)
   @Roles(Role.LECTURER, Role.ADMIN)

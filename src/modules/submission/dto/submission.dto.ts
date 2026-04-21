@@ -46,6 +46,10 @@ export class CreateSubmissionDto {
   @IsString()
   @IsOptional()
   battleId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  answers?: Record<string, string[]>;
 }
 
 export class UpdateScoreDto {
