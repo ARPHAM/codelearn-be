@@ -78,9 +78,13 @@ export class ProblemController {
   }
 
   @Get()
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'Student sees all public active problems' })
-  findAllForStudent(@Query() query: FilterProblemDto) {
-    return this.problemService.findAllForStudent(query);
+  findAllForStudent(
+    @Query() query: FilterProblemDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.problemService.findAllForStudent(query, user);
   }
 
   @Get(':id/edit')
@@ -98,7 +102,7 @@ export class ProblemController {
   })
   findOneForStudent(
     @Param('slug') slug: string,
-    @CurrentUser() user?: User,
+    @CurrentUser() user: User,
   ) {
     return this.problemService.findOneForStudent(slug, user);
   }

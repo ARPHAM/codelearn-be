@@ -235,7 +235,7 @@ export class ProblemService {
   }
 
   // Student sees only PUBLIC and ACTIVE problems
-  async findAllForStudent(query: FilterProblemDto) {
+  async findAllForStudent(query: FilterProblemDto, user: User) {
     const qb = this.problemRepo
       .createQueryBuilder('problem')
       .leftJoinAndSelect('problem.createdBy', 'createdBy')
@@ -248,6 +248,32 @@ export class ProblemService {
         '(problem.title ILIKE :search OR problem.slug ILIKE :search)',
         { search: `%${query.search}%` },
       );
+    }
+
+    if (query.difficulty) {
+      qb.andWhere('problem.difficulty = :difficulty', {
+        difficulty: query.difficulty,
+      });
+    }
+
+    if (query.status && user) {
+      // Subquery to check if user has passed this problem
+      // A problem is solved if there's any submission with status 'PASSED' for its versions
+      const solvedSubQuery = qb
+        .subQuery()
+        .select('1')
+        .from('submissions', 'sub')
+        .innerJoin('problem_versions', 'pv', 'pv.id = sub.problem_version_id')
+        .where('pv.problem_id = problem.id')
+        .andWhere('sub.user_id = :userId', { userId: user.id })
+        .andWhere('sub.status = :passedStatus', { passedStatus: 'PASSED' })
+        .getQuery();
+
+      if (query.status === 'SOLVED') {
+        qb.andWhere(`EXISTS (${solvedSubQuery})`);
+      } else if (query.status === 'UNSOLVED') {
+        qb.andWhere(`NOT EXISTS (${solvedSubQuery})`);
+      }
     }
 
     const page = query.page || 1;
@@ -465,27 +491,6 @@ export class ProblemService {
       where: { problemVersion: { id: versionId }, isHidden: false },
     });
 
-    // Fetch template language files: exclusive search to prevent duplication
-    let templateFiles: ProblemLanguageFile[] = [];
-    if (versionId) {
-      templateFiles = await this.langFileRepo.find({
-        where: { problemVersion: { id: versionId }, type: 'TEMPLATE' },
-        relations: ['language'],
-      });
-    }
-
-    // Fallback if no files found for the version (legacy data)
-    if (templateFiles.length === 0) {
-      templateFiles = await this.langFileRepo.find({
-        where: {
-          problem: { id: problem.id },
-          problemVersion: IsNull(),
-          type: 'TEMPLATE',
-        },
-        relations: ['language'],
-      });
-    }
-
     const problemFiles = await this.fileRepo.find({
       where: { problemVersion: { id: versionId } },
     });
@@ -504,7 +509,6 @@ export class ProblemService {
         entryFile: version.entryFile
       },
       testcases: publicTestcases,
-      languageFiles: templateFiles,
       files: problemFiles,
     };
   }
