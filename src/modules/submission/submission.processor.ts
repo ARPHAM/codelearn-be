@@ -12,6 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import { ExecutionGateway } from '../execution/execution.gateway';
 import { SubmissionStatus } from '../../shared/enums/submission-status.enum';
 import { Testcase } from '../problem/entities/testcase.entity';
+import { ProblemVersion } from '../problem/entities/problem-version.entity';
 import { SystemSettingsService } from '../admin/system-settings.service';
 
 const execAsync = promisify(exec);
@@ -23,6 +24,8 @@ export class SubmissionProcessor {
     private readonly submissionRepo: Repository<Submission>,
     @InjectRepository(Testcase)
     private readonly testcaseRepo: Repository<Testcase>,
+    @InjectRepository(ProblemVersion)
+    private readonly versionRepo: Repository<ProblemVersion>,
     @InjectRepository(Language)
     private readonly languageRepo: Repository<Language>,
     private readonly configService: ConfigService,
@@ -304,16 +307,42 @@ export class SubmissionProcessor {
     } finally {
       // STEP 6: Updating database
       try {
+        // Logic giữ điểm cao nhất khi có yêu cầu (isRegrade)
+        let scoreToSave = totalScore;
+        if (job.data.isRegrade) {
+          const currentSub = await this.submissionRepo.findOne({
+            where: { id: submissionId },
+            select: ['score'],
+          });
+          if (currentSub && currentSub.score > totalScore) {
+            scoreToSave = currentSub.score;
+          }
+        }
+
         await this.submissionRepo.update(submissionId, {
           status: finalStatus,
           errorMessage: lastError,
           runtime: maxRuntime,
-          score: totalScore,
+          score: scoreToSave,
           testcasePassed: testcasesPassed,
           results: JSON.stringify(results),
         });
       } catch (dbError) {
         console.error('DB UPDATE ERROR:', dbError);
+      }
+
+      // Logic chuyển đổi trạng thái khi xác thực bài giải thành công (isVerified)
+      try {
+        const sub = await this.submissionRepo.findOne({
+            where: { id: submissionId },
+            relations: ['problemVersion']
+        });
+        if (sub && sub.context === 'SYSTEM_VERIFY' && finalStatus === SubmissionStatus.ACCEPTED) {
+            await this.versionRepo.update(sub.problemVersion.id, { isVerified: true });
+            console.log(`[Submission] Problem Version ${sub.problemVersion.id} is now VERIFIED.`);
+        }
+      } catch (verifyError) {
+        console.error('VERIFY ERROR:', verifyError);
       }
 
       // STEP 7: Sending websocket result

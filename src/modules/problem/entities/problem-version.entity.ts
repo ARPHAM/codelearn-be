@@ -37,4 +37,7 @@ export class ProblemVersion {
 
   @Column({ default: 'DRAFT' })
   status: string;
+
+  @Column({ default: false, name: 'is_verified' })
+  isVerified: boolean;
 }

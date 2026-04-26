@@ -11,6 +11,7 @@ import {
 import { User } from '../../user/entities/user.entity';
 
 @Entity('courses')
+@Index(['semester'])
 export class Course {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -24,6 +25,12 @@ export class Course {
 
   @Column()
   semester: string;
+
+  @Column({ name: 'start_date', type: 'timestamp', nullable: true })
+  startDate: Date | null;
+
+  @Column({ name: 'end_date', type: 'timestamp', nullable: true })
+  endDate: Date | null;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'lecturer_id' })

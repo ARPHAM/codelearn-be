@@ -32,4 +32,16 @@ export class Exam {
 
   @Column({ default: 'DRAFT' })
   status: string;
+
+  @Column('int', { array: true, nullable: true, name: 'allowed_language_ids' })
+  allowedLanguageIds: number[];
+
+  @Column({ type: 'jsonb', nullable: true })
+  metadata: any;
+
+  @Column({ type: 'jsonb', nullable: true, name: 'generation_rules' })
+  generationRules: any;
+
+  @Column({ default: false, name: 'is_per_user_random' })
+  isPerUserRandom: boolean;
 }

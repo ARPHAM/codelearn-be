@@ -48,7 +48,9 @@ export class BankService {
     const item = this.itemRepo.create({
       bank: { id: bankId },
       problem: { id: dto.problemId as any },
-      note: dto.note,
+      difficulty: dto.difficulty || 'EASY',
+      tags: dto.tags || [],
+      score: dto.score || 0,
     });
     return this.itemRepo.save(item);
   }

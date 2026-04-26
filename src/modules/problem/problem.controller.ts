@@ -126,4 +126,17 @@ export class ProblemController {
   rejectVersion(@Param('versionId') versionId: string) {
     return this.problemService.rejectVersion(versionId);
   }
+
+  @Post('versions/:versionId/verify-solution')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LECTURER, Role.ADMIN)
+  @ApiOperation({
+    summary: 'Verify solution for a problem version',
+  })
+  verifySolution(
+    @Param('versionId') versionId: string,
+    @Body('languageId') languageId: number,
+  ) {
+    return this.problemService.verifySolution(versionId, languageId);
+  }
 }

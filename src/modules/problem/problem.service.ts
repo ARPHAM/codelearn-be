@@ -2,15 +2,18 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { Problem } from './entities/problem.entity';
 import { ProblemVersion } from './entities/problem-version.entity';
 import { Testcase } from './entities/testcase.entity';
-import { ProblemLanguageFile } from './entities/problem-language-file.entity';
 import { ProblemFile } from './entities/problem-file.entity';
 import { ProblemStats } from './entities/problem-stats.entity';
+import { Submission } from '../submission/entities/submission.entity';
+import { InjectQueue } from '@nestjs/bull';
+import type { Queue } from 'bull';
 import { CreateProblemDto } from './dto/create-problem.dto';
 import { UpdateProblemDto } from './dto/update-problem.dto';
 import { FilterProblemDto, ProblemFilterType } from './dto/filter-problem.dto';
@@ -27,12 +30,12 @@ export class ProblemService {
     @InjectRepository(ProblemVersion)
     private versionRepo: Repository<ProblemVersion>,
     @InjectRepository(Testcase) private testcaseRepo: Repository<Testcase>,
-    @InjectRepository(ProblemLanguageFile)
-    private langFileRepo: Repository<ProblemLanguageFile>,
     @InjectRepository(ProblemFile) private fileRepo: Repository<ProblemFile>,
     @InjectRepository(ProblemStats) private statsRepo: Repository<ProblemStats>,
+    @InjectRepository(Submission) private subRepo: Repository<Submission>,
     @InjectRepository(AssignmentProblem)
     private assignmentProblemRepo: Repository<AssignmentProblem>,
+    @InjectQueue('code-execution') private codeQueue: Queue,
   ) {}
 
   async create(dto: CreateProblemDto, user: User) {
@@ -44,6 +47,8 @@ export class ProblemService {
       type: dto.type,
       visibility: dto.visibility,
       source: dto.source,
+      timeLimit: dto.timeLimit || 5000,
+      memoryLimit: dto.memoryLimit || 256,
       status: 'INACTIVE', // Requires admin approval to be active
       createdBy: user,
     });
@@ -78,30 +83,18 @@ export class ProblemService {
       await this.testcaseRepo.save(testcasesToSave);
     }
 
-    // 4. Create Language Files
-    if (dto.languageFiles?.length) {
-      const langFilesToSave = dto.languageFiles.map((lf) =>
-        this.langFileRepo.create({
-          problem: savedProblem,
-          problemVersion: version,
-          language: { id: lf.languageId } as any,
-          path: lf.path,
-          content: lf.content,
-          type: lf.type,
-        }),
-      );
-      await this.langFileRepo.save(langFilesToSave);
-    }
-
-    // 5. Create Problem Files
+    // 4. Create Problem Files (Consolidated)
     if (dto.problemFiles?.length) {
       const pFilesToSave = dto.problemFiles.map((pf) =>
         this.fileRepo.create({
           id: uuidv4(),
           problemVersion: version,
+          language: pf.languageId ? ({ id: pf.languageId } as any) : null,
           path: pf.path,
           content: pf.content,
+          type: pf.type || 'NEUTRAL',
           isReadonly: pf.isReadonly || false,
+          isEntryFile: pf.isEntryFile || false,
         }),
       );
       await this.fileRepo.save(pFilesToSave);
@@ -311,28 +304,16 @@ export class ProblemService {
       order: { createdAt: 'DESC' },
     });
 
-    const currentVersion = versions[0]; // Or explicitly get by currentVersionId
+    const currentVersion = versions[0];
     let testcases: Testcase[] = [];
     let problemFiles: ProblemFile[] = [];
+
     if (currentVersion) {
       testcases = await this.testcaseRepo.find({
         where: { problemVersion: { id: currentVersion.id } },
       });
       problemFiles = await this.fileRepo.find({
         where: { problemVersion: { id: currentVersion.id } },
-      });
-    }
-
-    // Fetch language files: prioritize version-linked files, fallback to old unversioned files only if No versions exist
-    let languageFiles: ProblemLanguageFile[] = [];
-    if (currentVersion) {
-      languageFiles = await this.langFileRepo.find({
-        where: { problemVersion: { id: currentVersion.id } },
-        relations: ['language'],
-      });
-    } else {
-      languageFiles = await this.langFileRepo.find({
-        where: { problem: { id }, problemVersion: IsNull() },
         relations: ['language'],
       });
     }
@@ -341,9 +322,8 @@ export class ProblemService {
       problem,
       versions,
       testcases,
-      languageFiles,
       problemFiles,
-      entryFile: currentVersion?.entryFile,
+      languageFiles: problemFiles, // For backward compatibility with frontend
       canEdit,
     };
   }
@@ -410,30 +390,18 @@ export class ProblemService {
       await this.testcaseRepo.save(testcasesToSave);
     }
 
-    // Associate language files with this new version
-    if (dto.languageFiles?.length) {
-      const langFilesToSave = dto.languageFiles.map((lf) =>
-        this.langFileRepo.create({
-          problem: problem,
-          problemVersion: version,
-          language: { id: lf.languageId } as any,
-          path: lf.path,
-          content: lf.content,
-          type: lf.type,
-        }),
-      );
-      await this.langFileRepo.save(langFilesToSave);
-    }
-
-    // 5. Re-create problem files for this version
+    // 4. Re-create consolidated problem files for this version
     if (dto.problemFiles?.length) {
       const pFilesToSave = dto.problemFiles.map((pf) =>
         this.fileRepo.create({
           id: uuidv4(),
           problemVersion: version,
+          language: pf.languageId ? ({ id: pf.languageId } as any) : null,
           path: pf.path,
           content: pf.content,
+          type: pf.type || 'NEUTRAL',
           isReadonly: pf.isReadonly || false,
+          isEntryFile: pf.isEntryFile || false,
         }),
       );
       await this.fileRepo.save(pFilesToSave);
@@ -491,8 +459,13 @@ export class ProblemService {
       where: { problemVersion: { id: versionId }, isHidden: false },
     });
 
-    const problemFiles = await this.fileRepo.find({
-      where: { problemVersion: { id: versionId } },
+    // Student should only see TEMPLATE and NEUTRAL files.
+    // SOLUTION and HIDDEN files must be kept secret.
+    const studentFiles = await this.fileRepo.find({
+      where: [
+        { problemVersion: { id: versionId }, type: 'TEMPLATE' },
+        { problemVersion: { id: versionId }, type: 'NEUTRAL' }
+      ]
     });
 
     return {
@@ -501,6 +474,8 @@ export class ProblemService {
       slug: problem.slug,
       difficulty: problem.difficulty,
       type: problem.type,
+      timeLimit: problem.timeLimit,
+      memoryLimit: problem.memoryLimit,
       stats: stats,
       version: { 
         id: version.id, 
@@ -509,7 +484,8 @@ export class ProblemService {
         entryFile: version.entryFile
       },
       testcases: publicTestcases,
-      files: problemFiles,
+      files: studentFiles,
+      languageFiles: studentFiles, // Primary key used by student frontend
     };
   }
 
@@ -567,5 +543,72 @@ export class ProblemService {
       .select(['user.id', 'user.fullName', 'user.email', 'user.avatarUrl'])
       .distinct(true)
       .getMany();
+  }
+
+  async verifySolution(versionId: string, languageId: number) {
+    const version = await this.versionRepo.findOne({
+      where: { id: versionId },
+      relations: ['problem'],
+    });
+    if (!version) throw new NotFoundException('Phien ban khong ton tai');
+
+    const testcases = await this.testcaseRepo.find({
+      where: { problemVersion: { id: versionId } },
+    });
+    if (!testcases.length) throw new BadRequestException('Bai tap chua co testcase');
+
+    // Lay tat ca file giai phap cho ngon ngu nay
+    const solutionFiles = await this.fileRepo.find({
+      where: { 
+        problemVersion: { id: versionId }, 
+        language: { id: languageId }, 
+        type: 'SOLUTION' 
+      },
+      relations: ['language']
+    });
+
+    if (!solutionFiles.length) throw new BadRequestException('Khong tim thay file giai pháp cho ngon ngu nay');
+
+    // Lấy thêm file neutral và hidden cho ngôn ngữ này
+    const systemFiles = await this.fileRepo.find({
+      where: [
+        { problemVersion: { id: versionId }, type: 'NEUTRAL' },
+        { problemVersion: { id: versionId }, language: { id: languageId }, type: 'HIDDEN' }
+      ]
+    });
+
+    const finalFiles = [...solutionFiles, ...systemFiles].map(f => ({
+      filePath: f.path,
+      content: f.content
+    }));
+
+    const entryFileObj = solutionFiles.find(f => f.isEntryFile) || systemFiles.find(f => f.isEntryFile) || solutionFiles[0];
+    const language = (solutionFiles[0] as any).language;
+
+    // Build a temporary submission but with context SYSTEM_VERIFY
+    const subId = `verify-${uuidv4()}`;
+    const submission = this.subRepo.create({
+        id: subId,
+        problemVersion: { id: versionId },
+        languageId,
+        code: JSON.stringify({ entryFile: entryFileObj.path, files: finalFiles }),
+        status: 'QUEUED',
+        context: 'SYSTEM_VERIFY',
+        contextId: versionId,
+        type: 'SUBMIT'
+    });
+    await this.subRepo.save(submission);
+
+    await this.codeQueue.add({
+      submissionId: subId,
+      language: language.name,
+      problemVersionId: versionId,
+      files: finalFiles,
+      entryFile: entryFileObj.path,
+      timeLimit: version.problem.timeLimit,
+      memoryLimit: version.problem.memoryLimit,
+    });
+
+    return { message: 'Đã bắt đầu quá trình xác thực giải pháp...', submissionId: subId };
   }
 }

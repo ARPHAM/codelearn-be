@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
@@ -11,6 +12,8 @@ import { Submission } from './entities/submission.entity';
 import { User } from '../user/entities/user.entity';
 import { ProblemVersion } from '../problem/entities/problem-version.entity';
 import { Language } from '../problem/entities/language.entity';
+import { Exam } from '../exam/entities/exam.entity';
+import { ProblemFile } from '../problem/entities/problem-file.entity';
 import {
   CreateSubmissionDto,
   UpdateScoreDto,
@@ -18,7 +21,6 @@ import {
 } from './dto/submission.dto';
 import { SubmissionStatus } from '../../shared/enums/submission-status.enum';
 import { Role } from '../../common/enums/role.enum';
-import { ProblemLanguageFile } from '../problem/entities/problem-language-file.entity';
 import { fillTemplate } from '../problem/utils/template.util';
 
 @Injectable()
@@ -29,8 +31,10 @@ export class SubmissionService {
     @InjectRepository(ProblemVersion)
     private problemVersionRepo: Repository<ProblemVersion>,
     @InjectRepository(Language) private languageRepo: Repository<Language>,
-    @InjectRepository(ProblemLanguageFile)
-    private langFileRepository: Repository<ProblemLanguageFile>,
+    @InjectRepository(ProblemFile)
+    private problemFileRepository: Repository<ProblemFile>,
+    @InjectRepository(Exam)
+    private examRepo: Repository<Exam>,
     @InjectQueue('code-execution') private submissionQueue: Queue,
   ) {}
 
@@ -41,11 +45,12 @@ export class SubmissionService {
     });
     if (!problemVersion)
       throw new NotFoundException('Phien ban bai tap khong ton tai');
-    const problem = problemVersion.problem;
-    const timeLimit = (problem as any).timeLimit;
-    const memoryLimit = (problem as any).memoryLimit;
 
-    // Tìm kiếm ngôn ngữ không phân biệt chữ hoa chữ thường
+    const problem = problemVersion.problem;
+    const timeLimit = problem.timeLimit;
+    const memoryLimit = problem.memoryLimit;
+
+    // Tìm kiếm ngôn ngữ
     const languages = await this.languageRepo.find();
     const language = languages.find(l => 
       l.name.toLowerCase() === dto.language.toLowerCase() ||
@@ -54,63 +59,126 @@ export class SubmissionService {
     
     if (!language) throw new NotFoundException('Ngon ngu khong ho tro');
 
-    // Resolve code with FITB support
+    let context = 'EXERCISE';
+    let contextId = problemVersion.id;
+
+    if (dto.examId) {
+      context = 'EXAM';
+      contextId = dto.examId;
+    } else if (dto.battleId) {
+      context = 'BATTLE';
+      contextId = dto.battleId;
+    }
+
+    // Kiểm tra ràng buộc kỳ thi
+    if (context === 'EXAM') {
+      const exam = await this.examRepo.findOne({ where: { id: dto.examId } });
+      if (!exam) throw new NotFoundException('Ky thi khong ton tai');
+      
+      const now = new Date();
+      if (now < exam.startTime || now > exam.endTime) {
+        throw new BadRequestException('Ky thi chua bat dau hoac da ket thuc');
+      }
+
+      if (exam.allowedLanguageIds && exam.allowedLanguageIds.length > 0) {
+        if (!exam.allowedLanguageIds.includes(language.id)) {
+          throw new BadRequestException('Ngon ngu nay khong duoc phep trong ky thi');
+        }
+      }
+
+      // Kiểm tra xem đã nộp chưa (Nộp xong cũng khóa)
+      const hasSubmitted = await this.submissionRepo.findOne({
+        where: {
+          user: { id: student.id },
+          context: 'EXAM',
+          contextId: dto.examId,
+          problemVersion: { id: dto.problemVersionId },
+        },
+      });
+
+      if (hasSubmitted) {
+        throw new BadRequestException('Bạn đã nộp bài này trong kỳ thi và không thể sửa đổi.');
+      }
+    }
+
+    // Resolve code logic
     let finalFiles = dto.files || [];
-    if (dto.answers && dto.problemVersionId) {
-      const templateFiles = await this.langFileRepository.find({
+    let entryFile = dto.entryFile;
+
+    // Phân luồng Template vs Thường
+    if (context === 'EXAM') {
+      // Chế độ THI: Ép buộc dùng template
+      const templateFiles = await this.problemFileRepository.find({
         where: {
           problemVersion: { id: dto.problemVersionId },
+          language: { id: language.id },
           type: 'TEMPLATE',
         },
       });
 
-      for (const tFile of templateFiles) {
-        const fileAnswers = dto.answers[tFile.path];
-        if (fileAnswers) {
-          const filledContent = fillTemplate(tFile.content, fileAnswers);
-          const existingIdx = finalFiles.findIndex(
-            (f) => f.filePath === tFile.path,
-          );
-          if (existingIdx !== -1) {
-            finalFiles[existingIdx].content = filledContent;
-          } else {
-            finalFiles.push({ filePath: tFile.path, content: filledContent });
+      if (templateFiles.length > 0) {
+        for (const tFile of templateFiles) {
+          const fileAnswers = dto.answers ? dto.answers[tFile.path] : null;
+          if (fileAnswers) {
+            const filledContent = fillTemplate(tFile.content, fileAnswers);
+            const existingIdx = finalFiles.findIndex(f => f.filePath === tFile.path);
+            if (existingIdx !== -1) {
+              finalFiles[existingIdx].content = filledContent;
+            } else {
+              finalFiles.push({ filePath: tFile.path, content: filledContent });
+            }
+            if (tFile.isEntryFile && !entryFile) entryFile = tFile.path;
           }
         }
       }
+    } else {
+      // Chế độ THƯỜNG: Không dùng template
+      // Học sinh nộp gì dùng nấy. Có thể bổ sung nêutrals nếu hệ thống yêu cầu chạy ngầm
     }
 
-    const entryFile = finalFiles.find((f) => f.filePath === dto.entryFile);
-    if (!entryFile) {
-      throw new NotFoundException('Khong tim thay file main / entry');
+    // Bổ sung các file NEUTRAL hoặc HIDDEN cho cả 2 chế độ
+    const systemFiles = await this.problemFileRepository.find({
+      where: [
+        { problemVersion: { id: dto.problemVersionId }, type: 'NEUTRAL' },
+        { problemVersion: { id: dto.problemVersionId }, language: { id: language.id }, type: 'HIDDEN' }
+      ]
+    });
+
+    for (const sFile of systemFiles) {
+      if (!finalFiles.find(f => f.filePath === sFile.path)) {
+        finalFiles.push({ filePath: sFile.path, content: sFile.content });
+      }
+      if (sFile.isEntryFile && !entryFile) entryFile = sFile.path;
     }
+
+    if (!entryFile && finalFiles.length > 0) {
+      entryFile = finalFiles[0].filePath;
+    }
+
+    // Giới hạn lưu trữ
+    await this.enforceRetentionLimit(student.id, problemVersion.id, language.id, context, contextId);
 
     const submission = this.submissionRepo.create({
       problemVersion: { id: dto.problemVersionId },
       user: { id: student.id },
       language: { id: language.id },
-
-      code: JSON.stringify({
-        entryFile: dto.entryFile,
-        files: finalFiles,
-      }),
-
+      code: JSON.stringify({ entryFile, files: finalFiles }),
       status: SubmissionStatus.QUEUED,
-      context: dto.battleId ? 'BATTLE' : 'EXERCISE',
-      contextId: dto.battleId || dto.problemVersionId,
+      context,
+      contextId,
     });
 
     const saved = await this.submissionRepo.save(submission);
 
     await this.submissionQueue.add({
       submissionId: saved.id,
-      language: dto.language,
+      language: language.name,
       problemVersionId: dto.problemVersionId,
       files: finalFiles.map((f) => ({
         filePath: f.filePath,
         content: f.content,
       })),
-      entryFile: dto.entryFile,
+      entryFile,
       timeLimit,
       memoryLimit,
     });
@@ -120,6 +188,26 @@ export class SubmissionService {
       status: 'queued',
       message: 'Da nhan code. Dang cham...',
     };
+  }
+
+  private async enforceRetentionLimit(userId: string, problemVersionId: string, languageId: number, context: string, contextId: string) {
+    if (context === 'EXERCISE') {
+      const submissions = await this.submissionRepo.find({
+        where: { user: { id: userId }, problemVersion: { id: problemVersionId }, language: { id: languageId }, context: 'EXERCISE' },
+        order: { createdAt: 'DESC' }
+      });
+      if (submissions.length >= 5) {
+        const toDelete = submissions.slice(4); // Giữ lại 4 bản để slot thứ 5 cho bản mới
+        await this.submissionRepo.remove(toDelete);
+      }
+    } else if (context === 'EXAM' || context === 'BATTLE') {
+      const existing = await this.submissionRepo.find({
+        where: { user: { id: userId }, problemVersion: { id: problemVersionId }, context, contextId }
+      });
+      if (existing.length > 0) {
+        await this.submissionRepo.remove(existing);
+      }
+    }
   }
 
   async getResult(id: string, currentUser: User) {

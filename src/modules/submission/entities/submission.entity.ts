@@ -30,6 +30,9 @@ export class Submission {
   @JoinColumn({ name: 'language_id' })
   language: Language;
 
+  @Column({ name: 'language_id' })
+  languageId: number;
+
   @Column({ type: 'text', nullable: true })
   code: string;
 
