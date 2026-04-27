@@ -95,6 +95,7 @@ export class ProblemService {
           type: pf.type || 'NEUTRAL',
           isReadonly: pf.isReadonly || false,
           isEntryFile: pf.isEntryFile || false,
+          isFillInTheBlank: pf.isFillInTheBlank || false,
         }),
       );
       await this.fileRepo.save(pFilesToSave);
@@ -402,6 +403,7 @@ export class ProblemService {
           type: pf.type || 'NEUTRAL',
           isReadonly: pf.isReadonly || false,
           isEntryFile: pf.isEntryFile || false,
+          isFillInTheBlank: pf.isFillInTheBlank || false,
         }),
       );
       await this.fileRepo.save(pFilesToSave);

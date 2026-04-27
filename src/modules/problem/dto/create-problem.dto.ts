@@ -62,6 +62,11 @@ export class ProblemFileDto {
   @IsBoolean()
   @IsOptional()
   isEntryFile?: boolean;
+
+  @ApiProperty()
+  @IsBoolean()
+  @IsOptional()
+  isFillInTheBlank?: boolean;
 }
 
 export class CreateProblemDto {

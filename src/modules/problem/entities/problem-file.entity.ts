@@ -41,4 +41,7 @@ export class ProblemFile {
 
   @Column({ default: false, name: 'is_entry_file' })
   isEntryFile: boolean;
+
+  @Column({ default: false, name: 'is_fill_in_the_blank' })
+  isFillInTheBlank: boolean;
 }
