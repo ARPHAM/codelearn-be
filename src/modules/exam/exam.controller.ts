@@ -2,76 +2,75 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Param,
   Body,
   UseGuards,
-  ParseIntPipe,
   Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ExamService } from './exam.service';
+import { ExamGenerationService } from './exam-generation.service';
+import { ExamRegradeService } from './exam-regrade.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
-import {
-  IsNumber,
-  IsString,
-  IsBoolean,
-  IsArray,
-  IsOptional,
-  ValidateNested,
-} from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { User } from '../user/entities/user.entity';
 
-class ExamRuleDto {
-  @ApiProperty() @IsString() difficulty: string;
-  @ApiProperty() @IsNumber() @Type(() => Number) count: number;
-  @ApiProperty() @IsNumber() @Type(() => Number) score: number;
-}
-class GenerateExamDto {
-  @ApiProperty() @IsNumber() @Type(() => Number) courseId: number;
-  @ApiProperty() @IsString() name: string;
-  @ApiProperty() @IsNumber() @Type(() => Number) duration: number;
-  @ApiProperty({ type: [ExamRuleDto] })
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ExamRuleDto)
-  rules: ExamRuleDto[];
-  @ApiPropertyOptional({ type: [String] })
-  @IsArray()
-  @IsOptional()
-  requiredTags?: string[];
-  @ApiProperty() @IsBoolean() shuffle: boolean;
-}
-
-@ApiTags('Question Bank & Exam')
+@ApiTags('Exam & Placement')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('exam')
 export class ExamController {
-  constructor(private readonly examService: ExamService) {}
+  constructor(
+    private readonly examService: ExamService,
+    private readonly examGenService: ExamGenerationService,
+    private readonly examRegradeService: ExamRegradeService,
+  ) {}
 
-  @Post('generate')
-  @UseGuards(RolesGuard)
-  @Roles(Role.LECTURER, Role.ADMIN)
-  @ApiOperation({ summary: 'Tao de thi ngau nhien tu ngan hang cau hoi' })
-  generate(@Body() dto: GenerateExamDto) {
-    return this.examService.generate(dto as any);
+  @Get('course/:courseId')
+  @ApiOperation({ summary: 'Lấy danh sách đề thi của một lớp học' })
+  findAll(@Param('courseId') courseId: string) {
+    return this.examService.findAllForCourse(courseId);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Chi tiet de thi' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  @ApiOperation({ summary: 'Chi tiết đề thi' })
+  findOne(@Param('id') id: string) {
     return this.examService.findOne(id);
   }
 
-  @Get('questions')
+  @Post(':id/submit-approval')
   @UseGuards(RolesGuard)
-  @Roles(Role.LECTURER, Role.ADMIN)
-  @ApiOperation({ summary: 'Lay danh sach cau hoi trong ngan hang' })
-  listQuestions(@Query() _query: any) {
-    return { questions: [], total: 0 };
+  @Roles(Role.LECTURER)
+  @ApiOperation({ summary: 'Giảng viên gửi đề thi cho Admin duyệt (kiểm tra Rule)' })
+  submitForApproval(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.examService.submitForApproval(id, user);
+  }
+
+  @Patch(':id/approve')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Admin duyệt đề thi' })
+  approve(@Param('id') id: string) {
+    return this.examService.approveExam(id);
+  }
+
+  @Post(':id/start')
+  @UseGuards(RolesGuard)
+  @Roles(Role.STUDENT)
+  @ApiOperation({ summary: 'Sinh viên bắt đầu thi (Hệ thống bốc đề riêng)' })
+  start(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.examGenService.generateForUser(id, user.id);
+  }
+
+  @Post(':id/regrade')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Admin yêu cầu chấm lại toàn bộ bài thi' })
+  regrade(@Param('id') id: string) {
+    return this.examRegradeService.regradeExam(id);
   }
 }

@@ -9,7 +9,11 @@ import { Repository } from 'typeorm';
 import { Course } from './entities/course.entity';
 import { Enrollment } from './entities/enrollment.entity';
 import { User } from '../user/entities/user.entity';
-import { ListCoursesDto } from './dto/course.dto';
+import {
+  ListCoursesDto,
+  CreateClassDto,
+  AssignClassUsersDto,
+} from './dto/course.dto';
 import { Role } from '../../common/enums/role.enum';
 
 @Injectable()
@@ -90,6 +94,7 @@ export class CourseService {
       return enrollments.map((e) => e.course);
     }
 
+
     if (user.role === Role.ADMIN) {
       return this.courseRepo.find({
         order: { createdAt: 'DESC' },
@@ -97,5 +102,42 @@ export class CourseService {
     }
 
     return [];
+  }
+
+  async create(dto: CreateClassDto) {
+    const course = this.courseRepo.create();
+    course.name = dto.name ?? '';
+    course.code = dto.code ?? '';
+    course.semester = dto.semester ?? '';
+    course.description = dto.description ?? '';
+    course.startDate = dto.startDate ? new Date(dto.startDate) : null;
+    course.endDate = dto.endDate ? new Date(dto.endDate) : null;
+
+    return this.courseRepo.save(course);
+  }
+
+  async assignUsers(courseId: string, dto: AssignClassUsersDto) {
+    const course = await this.courseRepo.findOne({ where: { id: courseId } });
+    if (!course) throw new NotFoundException('Lớp học không tồn tại');
+
+    const enrollments: Enrollment[] = [];
+    for (const userId of dto.userIds) {
+      const existing = await this.enrollRepo.findOne({
+        where: { user: { id: userId }, course: { id: courseId } },
+      });
+      if (!existing) {
+        enrollments.push(
+          this.enrollRepo.create({
+            course: { id: courseId },
+            user: { id: userId },
+            role: dto.role,
+          }),
+        );
+      } else if (existing.role !== dto.role) {
+        existing.role = dto.role;
+        enrollments.push(existing);
+      }
+    }
+    return this.enrollRepo.save(enrollments);
   }
 }

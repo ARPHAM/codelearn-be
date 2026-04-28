@@ -26,8 +26,11 @@ export class BankItem {
   @Column({ type: 'text', nullable: true })
   note: string;
 
-  @Column({ nullable: true })
-  difficultyOverride: string;
+  @Column({ default: 'EASY' })
+  difficulty: string;
+
+  @Column('text', { array: true, nullable: true })
+  tags: string[];
 
   @Column({ nullable: true })
   score: number;

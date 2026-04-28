@@ -10,7 +10,12 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CourseService } from './course.service';
-import { ListCoursesDto, EnrollDto } from './dto/course.dto';
+import {
+  ListCoursesDto,
+  EnrollDto,
+  CreateClassDto,
+  AssignClassUsersDto,
+} from './dto/course.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -55,5 +60,21 @@ export class CourseController {
     @CurrentUser() user: User,
   ) {
     return this.courseService.enrollStudent(id, user);
+  }
+
+  @Post()
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Admin tạo lớp học mới' })
+  create(@Body() dto: CreateClassDto) {
+    return this.courseService.create(dto);
+  }
+
+  @Post(':id/users')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Admin gán giảng viên/sinh viên vào lớp' })
+  assignUsers(@Param('id') id: string, @Body() dto: AssignClassUsersDto) {
+    return this.courseService.assignUsers(id, dto);
   }
 }

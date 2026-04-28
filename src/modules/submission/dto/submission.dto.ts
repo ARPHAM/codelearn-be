@@ -47,6 +47,11 @@ export class CreateSubmissionDto {
   @IsOptional()
   battleId?: string;
 
+  @ApiPropertyOptional({ example: 'uuid-exam-here' })
+  @IsString()
+  @IsOptional()
+  examId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   answers?: Record<string, string[]>;

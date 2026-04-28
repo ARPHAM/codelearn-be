@@ -50,6 +50,12 @@ export class Problem {
   @Column('text', { array: true, nullable: true })
   tags: string[];
 
+  @Column({ name: 'time_limit', default: 5000 })
+  timeLimit: number;
+
+  @Column({ name: 'memory_limit', default: 256 })
+  memoryLimit: number;
+
   @OneToOne(() => ProblemStats, (stats) => stats.problem)
   stats: ProblemStats;
 

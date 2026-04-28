@@ -48,7 +48,6 @@ import {
   TestCase,
 } from './modules/exercise/entities/exercise.entity';
 import { Language } from './modules/problem/entities/language.entity';
-import { ProblemLanguageFile } from './modules/problem/entities/problem-language-file.entity';
 import { ProblemVersion } from './modules/problem/entities/problem-version.entity';
 import { Problem } from './modules/problem/entities/problem.entity';
 import { ProblemFile } from './modules/problem/entities/problem-file.entity';
@@ -84,7 +83,6 @@ const ALL_ENTITIES = [
   Exercise,
   TestCase,
   Language,
-  ProblemLanguageFile,
   ProblemVersion,
   Problem,
   ProblemTestcase,

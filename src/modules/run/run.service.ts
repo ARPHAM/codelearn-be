@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
 import { RunExecution } from './entities/run-execution.entity';
@@ -13,7 +13,7 @@ import { ProblemVersion } from '../problem/entities/problem-version.entity';
 import { Problem } from '../problem/entities/problem.entity';
 import { Testcase } from '../problem/entities/testcase.entity';
 import { SubmissionStatus } from '../../shared/enums/submission-status.enum';
-import { ProblemLanguageFile } from '../problem/entities/problem-language-file.entity';
+import { ProblemFile } from '../problem/entities/problem-file.entity';
 import { fillTemplate } from '../problem/utils/template.util';
 
 @Injectable()
@@ -25,8 +25,8 @@ export class RunService {
     private problemVersionRepository: Repository<ProblemVersion>,
     @InjectRepository(Testcase)
     private testcaseRepository: Repository<Testcase>,
-    @InjectRepository(ProblemLanguageFile)
-    private langFileRepository: Repository<ProblemLanguageFile>,
+    @InjectRepository(ProblemFile)
+    private problemFileRepository: Repository<ProblemFile>,
     @InjectQueue('code-execution') private codeQueue: Queue,
   ) {}
 
@@ -36,6 +36,7 @@ export class RunService {
     let memoryLimit: number | undefined;
     let maxCodeSize = 50000;
     let runInput = input || '';
+
 
     if (problemVersionId) {
       const problemVersion = await this.problemVersionRepository.findOne({
@@ -61,50 +62,109 @@ export class RunService {
       }
     }
 
-    const codeBuffer = Buffer.from(
-      dto.files ? JSON.stringify(dto.files) : dto.code || '',
-    );
-    if (codeBuffer.length > maxCodeSize) {
-      throw new BadRequestException(
-        `Code size exceeds maximum limit of ${maxCodeSize} bytes`,
-      );
-    }
+    // Resolve code logic
+    let finalFiles: any[] = [];
+    let entryFile = dto.entryFile;
+    const finalCode = dto.code || '';
 
-    // Resolve code to store in DB 
-    let finalFiles = dto.files || [];
-    let finalCode = dto.code || '';
+    // Check if we are in an exam context for Run
+    const isExam = !!(dto as any).examId;
 
-    // Nếu có answers từ FITB mode, thực hiện ghép code tại Backend
-    if (dto.answers && dto.problemVersionId) {
-      const templateFiles = await this.langFileRepository.find({
-        where: { problemVersion: { id: dto.problemVersionId }, type: 'TEMPLATE' },
+    if (problemVersionId) {
+      const problemVersion = await this.problemVersionRepository.findOne({
+        where: { id: problemVersionId },
       });
+      const workspaceConfig = problemVersion?.workspaceConfig || {};
+      const canCreateFile = workspaceConfig.canCreateFile !== false;
+      const canChangeMainFile = workspaceConfig.canChangeMainFile === true;
 
-      for (const tFile of templateFiles) {
-        const fileAnswers = dto.answers[tFile.path];
-        if (fileAnswers) {
-          const filledContent = fillTemplate(tFile.content, fileAnswers);
-          // Thay thế hoặc thêm vào finalFiles
-          const existingIdx = finalFiles.findIndex(f => f.filePath === tFile.path);
-          if (existingIdx !== -1) {
-            finalFiles[existingIdx].content = filledContent;
+      if (isExam) {
+        // Strict Mode for Run in Exam
+        const templateFiles = await this.problemFileRepository.find({
+          where: {
+            problemVersion: { id: problemVersionId },
+            type: 'TEMPLATE',
+            language: { id: languageId },
+          },
+        });
+        const templatePaths = templateFiles.map((t) => t.path);
+        
+        // Ưu tiên tìm Entry File cụ thể cho ngôn ngữ này (trong Template, Neutral hoặc Hidden)
+        const langEntryFile = (await this.problemFileRepository.findOne({
+          where: { problemVersion: { id: problemVersionId }, language: { id: languageId }, isEntryFile: true }
+        }))?.path;
+        
+        const systemEntryFile = langEntryFile || problemVersion?.entryFile;
+
+        for (const tFile of templateFiles) {
+          let content = tFile.content;
+          if (tFile.isFillInTheBlank) {
+            const fileAnswers = dto.answers ? dto.answers[tFile.path] : null;
+            if (fileAnswers) content = fillTemplate(tFile.content, fileAnswers);
+          } else if (tFile.isReadonly) {
+            content = tFile.content;
           } else {
-            finalFiles.push({ filePath: tFile.path, content: filledContent });
+            const feFile = dto.files?.find((f) => f.filePath === tFile.path);
+            if (feFile) content = feFile.content;
+          }
+          finalFiles.push({ filePath: tFile.path, content });
+        }
+
+        // Xác định entryFile cho Run (Exam context)
+        if (!canChangeMainFile && systemEntryFile) {
+          entryFile = systemEntryFile;
+        } else if (!entryFile && systemEntryFile) {
+          entryFile = systemEntryFile;
+        }
+
+        if (canCreateFile && dto.files) {
+          for (const feFile of dto.files) {
+            if (!templatePaths.includes(feFile.filePath)) {
+              finalFiles.push({ filePath: feFile.filePath, content: feFile.content });
+            }
           }
         }
+      } else {
+        // Freestyle Mode for Run
+        finalFiles =
+          dto.files?.map((f) => ({ filePath: f.filePath, content: f.content })) ||
+          [];
       }
+
+      // Add System Files (Neutral/Hidden)
+      const systemFiles = await this.problemFileRepository.find({
+        where: [
+          { problemVersion: { id: problemVersionId }, type: 'NEUTRAL' },
+          {
+            problemVersion: { id: problemVersionId },
+            language: { id: languageId },
+            type: 'HIDDEN',
+          },
+        ],
+      });
+
+      for (const sFile of systemFiles) {
+        if (!finalFiles.find((f) => f.filePath === sFile.path)) {
+          finalFiles.push({ filePath: sFile.path, content: sFile.content });
+        }
+        if (sFile.isEntryFile && !entryFile) entryFile = sFile.path;
+      }
+    } else {
+      // Basic Run without problem context
+      finalFiles =
+        dto.files?.map((f) => ({ filePath: f.filePath, content: f.content })) ||
+        [];
     }
 
-    const finalCodeString = finalFiles.length > 0 ? JSON.stringify(finalFiles) : finalCode;
-    const entryFile =
-      dto.entryFile ||
-      (finalFiles.length > 0 ? finalFiles[0].filePath : '');
+    if (!entryFile && finalFiles.length > 0) {
+      entryFile = finalFiles[0].filePath;
+    }
 
     const runExecution = this.runExecutionRepository.create({
       userId,
       problemVersionId,
       languageId: dto.languageId,
-      code: finalCode,
+      code: finalFiles.length > 0 ? JSON.stringify(finalFiles) : finalCode,
       input: runInput,
       status: SubmissionStatus.QUEUED,
     });
@@ -114,8 +174,8 @@ export class RunService {
     await this.codeQueue.add('run_job', {
       runId: runExecution.id,
       languageId: dto.languageId,
-      code: finalCode, // use filled code
-      files: finalFiles, // use filled files
+      code: finalCode, 
+      files: finalFiles, 
       entryFile,
       input: runInput,
       problemVersionId,

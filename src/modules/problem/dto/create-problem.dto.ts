@@ -34,24 +34,6 @@ export class TestCaseDto {
   order: number;
 }
 
-export class LanguageFileDto {
-  @ApiProperty()
-  @IsNumber()
-  languageId: number;
-
-  @ApiProperty()
-  @IsString()
-  path: string;
-
-  @ApiProperty()
-  @IsString()
-  content: string;
-
-  @ApiProperty()
-  @IsString()
-  type: string; // TEMPLATE or SOLUTION
-}
-
 export class ProblemFileDto {
   @ApiProperty()
   @IsString()
@@ -61,10 +43,30 @@ export class ProblemFileDto {
   @IsString()
   content: string;
 
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  languageId?: number;
+
+  @ApiProperty({ example: 'NEUTRAL' })
+  @IsString()
+  @IsOptional()
+  type?: string; // TEMPLATE | SOLUTION | NEUTRAL | HIDDEN
+
   @ApiProperty()
   @IsBoolean()
   @IsOptional()
   isReadonly?: boolean;
+
+  @ApiProperty()
+  @IsBoolean()
+  @IsOptional()
+  isEntryFile?: boolean;
+
+  @ApiProperty()
+  @IsBoolean()
+  @IsOptional()
+  isFillInTheBlank?: boolean;
 }
 
 export class CreateProblemDto {
@@ -113,18 +115,21 @@ export class CreateProblemDto {
   @IsOptional()
   entryFile?: string;
 
+  @ApiProperty({ default: 5000 })
+  @IsNumber()
+  @IsOptional()
+  timeLimit?: number;
+
+  @ApiProperty({ default: 256 })
+  @IsNumber()
+  @IsOptional()
+  memoryLimit?: number;
+
   @ApiProperty({ type: [TestCaseDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => TestCaseDto)
   testcases: TestCaseDto[];
-
-  @ApiProperty({ type: [LanguageFileDto], required: false })
-  @IsArray()
-  @IsOptional()
-  @ValidateNested({ each: true })
-  @Type(() => LanguageFileDto)
-  languageFiles?: LanguageFileDto[];
 
   @ApiProperty({ type: [ProblemFileDto], required: false })
   @IsArray()

@@ -23,7 +23,16 @@ export class AddBankItemDto {
   @IsNotEmpty()
   problemId: number;
 
+  @ApiProperty({ example: 'EASY' })
+  @IsString()
+  @IsOptional()
+  difficulty?: string;
+
+  @ApiProperty({ type: [String], required: false })
+  @IsOptional()
+  tags?: string[];
+
   @ApiProperty({ required: false })
   @IsOptional()
-  note?: string;
+  score?: number;
 }

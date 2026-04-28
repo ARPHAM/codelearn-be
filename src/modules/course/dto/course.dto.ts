@@ -1,4 +1,4 @@
-﻿import { IsOptional, IsString, IsNumber } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsArray } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -25,4 +25,35 @@ export class EnrollDto {
   @ApiPropertyOptional({ example: 1 })
   @IsNumber()
   courseId: number;
+}
+
+export class CreateClassDto {
+  @IsString()
+  name: string;
+
+  @IsString()
+  code: string;
+
+  @IsString()
+  semester: string;
+
+  @IsOptional()
+  @IsString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsString()
+  endDate?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+}
+
+export class AssignClassUsersDto {
+  @IsArray()
+  userIds: string[];
+
+  @IsString()
+  role: 'student' | 'lecturer';
 }

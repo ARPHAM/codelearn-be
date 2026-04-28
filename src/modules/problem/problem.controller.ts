@@ -78,9 +78,13 @@ export class ProblemController {
   }
 
   @Get()
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'Student sees all public active problems' })
-  findAllForStudent(@Query() query: FilterProblemDto) {
-    return this.problemService.findAllForStudent(query);
+  findAllForStudent(
+    @Query() query: FilterProblemDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.problemService.findAllForStudent(query, user);
   }
 
   @Get(':id/edit')
@@ -98,9 +102,11 @@ export class ProblemController {
   })
   findOneForStudent(
     @Param('slug') slug: string,
-    @CurrentUser() user?: User,
+    @Query('languageId') languageId: string,
+    @Query('examId') examId: string,
+    @CurrentUser() user: User,
   ) {
-    return this.problemService.findOneForStudent(slug, user);
+    return this.problemService.findOneForStudent(slug, user, languageId ? +languageId : undefined, examId);
   }
 
   @Patch('admin/versions/:versionId/approve')
@@ -121,5 +127,18 @@ export class ProblemController {
   })
   rejectVersion(@Param('versionId') versionId: string) {
     return this.problemService.rejectVersion(versionId);
+  }
+
+  @Post('versions/:versionId/verify-solution')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LECTURER, Role.ADMIN)
+  @ApiOperation({
+    summary: 'Verify solution for a problem version',
+  })
+  verifySolution(
+    @Param('versionId') versionId: string,
+    @Body('languageId') languageId: number,
+  ) {
+    return this.problemService.verifySolution(versionId, languageId);
   }
 }

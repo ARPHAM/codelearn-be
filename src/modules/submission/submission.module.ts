@@ -7,8 +7,11 @@ import { Submission } from './entities/submission.entity';
 import { ProblemVersion } from '../problem/entities/problem-version.entity';
 import { Language } from '../problem/entities/language.entity';
 import { Testcase } from '../problem/entities/testcase.entity';
-import { ProblemLanguageFile } from '../problem/entities/problem-language-file.entity';
+import { ProblemFile } from '../problem/entities/problem-file.entity';
+import { RunExecution } from '../run/entities/run-execution.entity';
+import { Exam } from '../exam/entities/exam.entity';
 import { SubmissionProcessor } from './submission.processor';
+import { SubmissionCleanupService } from './submission-cleanup.service';
 import { ExecutionModule } from '../execution/execution.module';
 import { AdminModule } from '../admin/admin.module';
 
@@ -19,7 +22,9 @@ import { AdminModule } from '../admin/admin.module';
       ProblemVersion,
       Language,
       Testcase,
-      ProblemLanguageFile,
+      ProblemFile,
+      RunExecution,
+      Exam,
     ]),
     ExecutionModule,
     AdminModule,
@@ -28,7 +33,7 @@ import { AdminModule } from '../admin/admin.module';
     }),
   ],
   controllers: [SubmissionController],
-  providers: [SubmissionService, SubmissionProcessor],
+  providers: [SubmissionService, SubmissionProcessor, SubmissionCleanupService],
   exports: [SubmissionService],
 })
 export class SubmissionModule {}
