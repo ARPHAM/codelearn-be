@@ -417,7 +417,7 @@ export class ProblemService {
   }
 
   // View for Student (No hidden testcases, no solution code)
-  async findOneForStudent(slug: string, user?: User) {
+  async findOneForStudent(slug: string, user?: User, languageId?: number, examId?: string) {
     const problem = await this.problemRepo.findOne({
       where: { slug },
       relations: ['createdBy'],
@@ -425,12 +425,19 @@ export class ProblemService {
 
     if (!problem) throw new NotFoundException('Problem not found');
 
+    const isOwner = user && (problem as any).createdBy?.id === user.id;
+    const isAdmin = user && user.role === Role.ADMIN;
+    const canSeeAll = isOwner || isAdmin;
+
     const isPublicAndActive =
       problem.visibility === 'PUBLIC' && problem.status === 'ACTIVE';
-    const isOwner = user && problem.createdBy.id === user.id;
-    const isAdmin = user && user.role === Role.ADMIN;
 
-    if (!isPublicAndActive && !isOwner && !isAdmin) {
+    // Check visibility
+    if (!canSeeAll && problem.visibility === 'PRIVATE' && !examId) {
+      throw new NotFoundException('Problem not found');
+    }
+
+    if (!isPublicAndActive && !canSeeAll && !examId) {
       throw new NotFoundException('Problem not found or not public');
     }
 
@@ -456,19 +463,47 @@ export class ProblemService {
       where: { problemId: problem.id },
     });
 
-    // Only fetch non-hidden testcases
-    const publicTestcases = await this.testcaseRepo.find({
-      where: { problemVersion: { id: versionId }, isHidden: false },
-    });
+    // Fetch testcases
+    let testcases: Testcase[] = [];
+    if (canSeeAll) {
+      // Authors and Admins see ALL testcases
+      testcases = await this.testcaseRepo.find({
+        where: { problemVersion: { id: versionId } },
+        order: { order: 'ASC' },
+      });
+    } else {
+      // Students only see public testcases
+      testcases = await this.testcaseRepo.find({
+        where: { problemVersion: { id: versionId }, isHidden: false },
+        order: { order: 'ASC' },
+      });
+    }
 
-    // Student should only see TEMPLATE and NEUTRAL files.
-    // SOLUTION and HIDDEN files must be kept secret.
-    const studentFiles = await this.fileRepo.find({
-      where: [
-        { problemVersion: { id: versionId }, type: 'TEMPLATE' },
-        { problemVersion: { id: versionId }, type: 'NEUTRAL' }
-      ]
-    });
+    let studentFiles: ProblemFile[] = [];
+
+    if (canSeeAll) {
+      // Authors and Admins see EVERYTHING
+      studentFiles = await this.fileRepo.find({
+        where: { problemVersion: { id: versionId } },
+        relations: ['language'],
+      });
+    } else if (examId) {
+      // Exam Mode: Return TEMPLATE and NEUTRAL
+      const queryBuilder = this.fileRepo.createQueryBuilder('file')
+        .where('file.problem_version_id = :versionId', { versionId })
+        .andWhere('(file.type = :neutralType OR file.type = :templateType)', {
+          neutralType: 'NEUTRAL',
+          templateType: 'TEMPLATE'
+        });
+      
+      if (languageId) {
+        queryBuilder.andWhere('file.language_id = :languageId', { languageId });
+      }
+      studentFiles = await queryBuilder.getMany();
+    } else {
+      // Normal Practice Mode: Return empty files as per requirement
+      studentFiles = [];
+    }
 
     return {
       id: problem.id,
@@ -485,9 +520,10 @@ export class ProblemService {
         workspaceConfig: version.workspaceConfig,
         entryFile: version.entryFile
       },
-      testcases: publicTestcases,
+      testcases: testcases,
       files: studentFiles,
-      languageFiles: studentFiles, // Primary key used by student frontend
+      languageFiles: studentFiles,
+      canEdit: canSeeAll,
     };
   }
 

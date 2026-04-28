@@ -53,6 +53,9 @@ export class Submission {
   @Column({ nullable: true })
   score: number;
 
+  @Column({ name: 'max_score', nullable: true })
+  maxScore: number;
+
   @Column({ nullable: true })
   runtime: number;
 

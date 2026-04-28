@@ -37,7 +37,6 @@ export class RunService {
     let maxCodeSize = 50000;
     let runInput = input || '';
 
-    let entryFile = dto.entryFile || '';
 
     if (problemVersionId) {
       const problemVersion = await this.problemVersionRepository.findOne({
@@ -63,57 +62,98 @@ export class RunService {
       }
     }
 
-    // Resolve code to store in DB 
-    let finalFiles = dto.files || [];
-    let finalCode = dto.code || '';
+    // Resolve code logic
+    let finalFiles: any[] = [];
+    let entryFile = dto.entryFile;
+    const finalCode = dto.code || '';
 
-    // Nếu bài tập có các file hệ thống (neutral hoặc hidden cho ngôn ngữ này)
+    // Check if we are in an exam context for Run
+    const isExam = !!(dto as any).examId;
+
     if (problemVersionId) {
-      const systemFiles = await this.problemFileRepository.find({
-        where: [
-          { problemVersion: { id: problemVersionId }, type: 'NEUTRAL' },
-          { problemVersion: { id: problemVersionId }, language: { id: languageId }, type: 'HIDDEN' }
-        ]
+      const problemVersion = await this.problemVersionRepository.findOne({
+        where: { id: problemVersionId },
       });
+      const workspaceConfig = problemVersion?.workspaceConfig || {};
+      const canCreateFile = workspaceConfig.canCreateFile !== false;
+      const canChangeMainFile = workspaceConfig.canChangeMainFile === true;
 
-      for (const sFile of systemFiles) {
-        const existing = finalFiles.find(f => f.filePath === sFile.path);
-        if (!existing) {
-          finalFiles.push({ filePath: sFile.path, content: sFile.content });
-        }
-        if (sFile.isEntryFile && !entryFile) {
-          entryFile = sFile.path;
-        }
-      }
-    }
+      if (isExam) {
+        // Strict Mode for Run in Exam
+        const templateFiles = await this.problemFileRepository.find({
+          where: {
+            problemVersion: { id: problemVersionId },
+            type: 'TEMPLATE',
+            language: { id: languageId },
+          },
+        });
+        const templatePaths = templateFiles.map((t) => t.path);
+        
+        // Ưu tiên tìm Entry File cụ thể cho ngôn ngữ này (trong Template, Neutral hoặc Hidden)
+        const langEntryFile = (await this.problemFileRepository.findOne({
+          where: { problemVersion: { id: problemVersionId }, language: { id: languageId }, isEntryFile: true }
+        }))?.path;
+        
+        const systemEntryFile = langEntryFile || problemVersion?.entryFile;
 
-    // Nếu có answers từ FITB mode, thực hiện ghép code tại Backend
-    if (dto.answers && problemVersionId) {
-      const templateFiles = await this.problemFileRepository.find({
-        where: { 
-          problemVersion: { id: problemVersionId }, 
-          type: 'TEMPLATE',
-          language: { id: languageId }
-        },
-      });
-
-      if (templateFiles.length > 0) {
         for (const tFile of templateFiles) {
-          const fileAnswers = dto.answers[tFile.path];
-          if (fileAnswers) {
-            const filledContent = fillTemplate(tFile.content, fileAnswers);
-            const existingIdx = finalFiles.findIndex(f => f.filePath === tFile.path);
-            if (existingIdx !== -1) {
-              finalFiles[existingIdx].content = filledContent;
-            } else {
-              finalFiles.push({ filePath: tFile.path, content: filledContent });
-            }
-            if (tFile.isEntryFile && !entryFile) {
-              entryFile = tFile.path;
+          let content = tFile.content;
+          if (tFile.isFillInTheBlank) {
+            const fileAnswers = dto.answers ? dto.answers[tFile.path] : null;
+            if (fileAnswers) content = fillTemplate(tFile.content, fileAnswers);
+          } else if (tFile.isReadonly) {
+            content = tFile.content;
+          } else {
+            const feFile = dto.files?.find((f) => f.filePath === tFile.path);
+            if (feFile) content = feFile.content;
+          }
+          finalFiles.push({ filePath: tFile.path, content });
+        }
+
+        // Xác định entryFile cho Run (Exam context)
+        if (!canChangeMainFile && systemEntryFile) {
+          entryFile = systemEntryFile;
+        } else if (!entryFile && systemEntryFile) {
+          entryFile = systemEntryFile;
+        }
+
+        if (canCreateFile && dto.files) {
+          for (const feFile of dto.files) {
+            if (!templatePaths.includes(feFile.filePath)) {
+              finalFiles.push({ filePath: feFile.filePath, content: feFile.content });
             }
           }
         }
+      } else {
+        // Freestyle Mode for Run
+        finalFiles =
+          dto.files?.map((f) => ({ filePath: f.filePath, content: f.content })) ||
+          [];
       }
+
+      // Add System Files (Neutral/Hidden)
+      const systemFiles = await this.problemFileRepository.find({
+        where: [
+          { problemVersion: { id: problemVersionId }, type: 'NEUTRAL' },
+          {
+            problemVersion: { id: problemVersionId },
+            language: { id: languageId },
+            type: 'HIDDEN',
+          },
+        ],
+      });
+
+      for (const sFile of systemFiles) {
+        if (!finalFiles.find((f) => f.filePath === sFile.path)) {
+          finalFiles.push({ filePath: sFile.path, content: sFile.content });
+        }
+        if (sFile.isEntryFile && !entryFile) entryFile = sFile.path;
+      }
+    } else {
+      // Basic Run without problem context
+      finalFiles =
+        dto.files?.map((f) => ({ filePath: f.filePath, content: f.content })) ||
+        [];
     }
 
     if (!entryFile && finalFiles.length > 0) {

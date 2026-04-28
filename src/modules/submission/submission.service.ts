@@ -102,12 +102,14 @@ export class SubmissionService {
     }
 
     // Resolve code logic
-    let finalFiles = dto.files || [];
+    let finalFiles: any[] = [];
     let entryFile = dto.entryFile;
 
-    // Phân luồng Template vs Thường
+    const workspaceConfig = problemVersion.workspaceConfig || {};
+    const canCreateFile = workspaceConfig.canCreateFile !== false;
+
     if (context === 'EXAM') {
-      // Chế độ THI: Ép buộc dùng template
+      // Chế độ THI: Strict mode
       const templateFiles = await this.problemFileRepository.find({
         where: {
           problemVersion: { id: dto.problemVersionId },
@@ -116,24 +118,52 @@ export class SubmissionService {
         },
       });
 
-      if (templateFiles.length > 0) {
-        for (const tFile of templateFiles) {
+      const templatePaths = templateFiles.map((t) => t.path);
+      
+      // Ưu tiên tìm Entry File cụ thể cho ngôn ngữ này (trong Template, Neutral hoặc Hidden)
+      const langEntryFile = (await this.problemFileRepository.findOne({
+        where: { problemVersion: { id: dto.problemVersionId }, language: { id: language.id }, isEntryFile: true }
+      }))?.path;
+      
+      const systemEntryFile = langEntryFile || problemVersion.entryFile;
+      const canChangeMainFile = workspaceConfig.canChangeMainFile === true;
+
+      for (const tFile of templateFiles) {
+        let content = tFile.content;
+
+        if (tFile.isFillInTheBlank) {
           const fileAnswers = dto.answers ? dto.answers[tFile.path] : null;
           if (fileAnswers) {
-            const filledContent = fillTemplate(tFile.content, fileAnswers);
-            const existingIdx = finalFiles.findIndex(f => f.filePath === tFile.path);
-            if (existingIdx !== -1) {
-              finalFiles[existingIdx].content = filledContent;
-            } else {
-              finalFiles.push({ filePath: tFile.path, content: filledContent });
-            }
-            if (tFile.isEntryFile && !entryFile) entryFile = tFile.path;
+            content = fillTemplate(tFile.content, fileAnswers);
+          }
+        } else if (tFile.isReadonly) {
+          content = tFile.content;
+        } else {
+          const feFile = dto.files?.find((f) => f.filePath === tFile.path);
+          if (feFile) content = feFile.content;
+        }
+
+        finalFiles.push({ filePath: tFile.path, content });
+      }
+
+      // Xác định entryFile cho Run (Exam context)
+      if (!canChangeMainFile && systemEntryFile) {
+        entryFile = systemEntryFile;
+      } else if (!entryFile && systemEntryFile) {
+        entryFile = systemEntryFile;
+      }
+
+      // Bổ sung các file mới từ FE nếu được phép
+      if (canCreateFile && dto.files) {
+        for (const feFile of dto.files) {
+          if (!templatePaths.includes(feFile.filePath)) {
+            finalFiles.push({ filePath: feFile.filePath, content: feFile.content });
           }
         }
       }
     } else {
-      // Chế độ THƯỜNG: Không dùng template
-      // Học sinh nộp gì dùng nấy. Có thể bổ sung nêutrals nếu hệ thống yêu cầu chạy ngầm
+      // Chế độ THƯỜNG: Freestyle - Học sinh nộp gì dùng nấy
+      finalFiles = dto.files?.map(f => ({ filePath: f.filePath, content: f.content })) || [];
     }
 
     // Bổ sung các file NEUTRAL hoặc HIDDEN cho cả 2 chế độ
@@ -230,6 +260,7 @@ export class SubmissionService {
     return {
       status: sub.status,
       score: sub.score,
+      maxScore: sub.maxScore,
       testcasesPassed: sub.testcasePassed || 0,
       testcasesTotal: results.length,
       results: results,

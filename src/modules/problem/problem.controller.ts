@@ -102,9 +102,11 @@ export class ProblemController {
   })
   findOneForStudent(
     @Param('slug') slug: string,
+    @Query('languageId') languageId: string,
+    @Query('examId') examId: string,
     @CurrentUser() user: User,
   ) {
-    return this.problemService.findOneForStudent(slug, user);
+    return this.problemService.findOneForStudent(slug, user, languageId ? +languageId : undefined, examId);
   }
 
   @Patch('admin/versions/:versionId/approve')

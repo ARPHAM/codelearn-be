@@ -72,6 +72,7 @@ export class SubmissionProcessor {
 
     let finalStatus = SubmissionStatus.ACCEPTED;
     let totalScore = 0;
+    let totalMaxScore = 0;
     let testcasesPassed = 0;
     let maxRuntime = 0;
     let totalMemory = 0;
@@ -162,6 +163,7 @@ export class SubmissionProcessor {
       // STEP 6: Loop through testcases
       for (let i = 0; i < testcases.length; i++) {
         const tc = testcases[i];
+        totalMaxScore += tc.score;
         const inputPath = path.join(workspace, '.std_input.txt');
         await fs.writeFile(inputPath, tc.input);
 
@@ -324,6 +326,7 @@ export class SubmissionProcessor {
           errorMessage: lastError,
           runtime: maxRuntime,
           score: scoreToSave,
+          maxScore: totalMaxScore,
           testcasePassed: testcasesPassed,
           results: JSON.stringify(results),
         });
@@ -350,6 +353,7 @@ export class SubmissionProcessor {
         this.executionGateway.sendResult(submissionId, {
           status: finalStatus,
           score: totalScore,
+          maxScore: totalMaxScore,
           testcasesPassed,
           testcasesTotal: results.length,
           results: results,
