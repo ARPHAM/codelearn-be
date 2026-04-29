@@ -15,12 +15,17 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '../user/entities/user.entity';
 
+import { RoomGateway } from './room.gateway';
+
 @ApiTags('Room')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('room')
 export class RoomController {
-  constructor(private readonly roomService: RoomService) {}
+  constructor(
+    private readonly roomService: RoomService,
+    private readonly roomGateway: RoomGateway,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Lấy danh sách tất cả các phòng học đang online' })
@@ -84,5 +89,23 @@ export class RoomController {
   @ApiOperation({ summary: 'Get current session state of a room' })
   getSession(@Param('id') id: string, @CurrentUser() user: User) {
     return this.roomService.getRoomSession(id, user.id);
+  }
+
+  @Post(':id/approve/:userId')
+  @ApiOperation({ summary: 'Approve a participant to join the room' })
+  async approveParticipant(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @CurrentUser() user: User,
+  ) {
+    const result = await this.roomService.approveParticipant(id, userId);
+    this.roomGateway.notifyApproved(id, userId);
+    return result;
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete a room' })
+  deleteRoom(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.roomService.deleteRoom(id);
   }
 }

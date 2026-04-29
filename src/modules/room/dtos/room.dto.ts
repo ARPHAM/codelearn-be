@@ -32,9 +32,9 @@ export class CreateRoomDto {
   type?: RoomType;
 
   @ApiProperty({ required: false })
-  @IsInt()
+  @IsString()
   @IsOptional()
-  problemId?: number;
+  problemSlug?: string;
 
   @ApiProperty({ required: false })
   @IsInt()

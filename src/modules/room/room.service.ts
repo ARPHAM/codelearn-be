@@ -12,6 +12,7 @@ import { RoomSession } from './entities/room-session.entity';
 import { CreateRoomDto, JoinRoomDto, UpdateRoomDto } from './dtos/room.dto';
 import { WorkspaceService } from '../workspace/workspace.service';
 import { RoomRuntimeStore } from './room-runtime.store';
+import { UserWorkspace } from '../workspace/entities/user-workspace.entity';
 
 @Injectable()
 export class RoomService {
@@ -23,6 +24,8 @@ export class RoomService {
     @InjectRepository(RoomSession)
     private readonly sessionRepo: Repository<RoomSession>,
     private readonly workspaceService: WorkspaceService,
+    @InjectRepository(UserWorkspace)
+    private readonly workspaceRepo: Repository<UserWorkspace>,
     private readonly dataSource: DataSource,
     private readonly runtimeStore: RoomRuntimeStore,
   ) {}
@@ -33,6 +36,7 @@ export class RoomService {
         ...dto,
         type: dto.type || RoomType.MEETING,
         createdBy: userId,
+        problemSlug: dto.problemSlug,
       });
       const savedRoom = await manager.save(Room, room);
 
@@ -85,8 +89,8 @@ export class RoomService {
     // Check if already in room
     const existing = await this.participantRepo
       .createQueryBuilder('participant')
-      .where('participant.room_id = :roomId', { roomId })
-      .andWhere('participant.user_id = :userId', { userId })
+      .where('participant.roomId = :roomId', { roomId })
+      .andWhere('participant.userId = :userId', { userId })
       .getOne();
     if (existing) {
       throw new BadRequestException('User already in room');
@@ -103,39 +107,53 @@ export class RoomService {
       userId,
       workspaceId: dto.workspaceId,
       role: dto.role || 'GUEST',
+      status: 'PENDING',
     });
 
     return this.participantRepo.save(participant);
   }
 
-  async leaveRoom(roomId: string, userId: string): Promise<void> {
-    const participant = await this.participantRepo
-      .createQueryBuilder('participant')
-      .where('participant.room_id = :roomId', { roomId })
-      .andWhere('participant.user_id = :userId', { userId })
-      .getOne();
-    if (!participant) {
-      throw new NotFoundException('Participant not found in this room');
-    }
-    await this.participantRepo.remove(participant);
+  async leaveRoom(roomId: string, userId: string) {
+    await this.participantRepo.delete({ roomId, userId });
+  }
+
+  async deleteRoom(roomId: string) {
+    // 1. Delete all sessions related to this room
+    await this.sessionRepo.delete({ roomId });
+    // 2. Delete all participants
+    await this.participantRepo.delete({ roomId });
+    // 3. Delete the room
+    await this.roomRepo.delete(roomId);
   }
 
   async getParticipants(roomId: string): Promise<RoomParticipant[]> {
-    return this.participantRepo
+    const participants = await this.participantRepo
       .createQueryBuilder('participant')
       .leftJoinAndSelect('participant.user', 'user')
       .leftJoinAndSelect('participant.workspace', 'workspace')
-      .where('participant.room_id = :roomId', { roomId })
+      .where('participant.roomId = :roomId', { roomId })
       .getMany();
+    
+    console.log(`[RoomService] Fetched ${participants.length} participants for room ${roomId}:`, 
+      participants.map(p => ({ userId: p.userId, status: p.status, role: p.role }))
+    );
+    return participants;
   }
 
   async isParticipant(roomId: string, userId: string): Promise<boolean> {
     const count = await this.participantRepo
       .createQueryBuilder('participant')
-      .where('participant.room_id = :roomId', { roomId })
-      .andWhere('participant.user_id = :userId', { userId })
+      .where('participant.roomId = :roomId', { roomId })
+      .andWhere('participant.userId = :userId', { userId })
       .getCount();
     return count > 0;
+  }
+
+  async getParticipant(
+    roomId: string,
+    userId: string,
+  ): Promise<RoomParticipant | null> {
+    return this.participantRepo.findOne({ where: { roomId, userId } });
   }
 
   async validateParticipantOrThrow(
@@ -144,8 +162,8 @@ export class RoomService {
   ): Promise<RoomParticipant> {
     const participant = await this.participantRepo
       .createQueryBuilder('participant')
-      .where('participant.room_id = :roomId', { roomId })
-      .andWhere('participant.user_id = :userId', { userId })
+      .where('participant.roomId = :roomId', { roomId })
+      .andWhere('participant.userId = :userId', { userId })
       .getOne();
     if (!participant) {
       throw new ForbiddenException('User is not a participant of this room');
@@ -164,8 +182,8 @@ export class RoomService {
     // Check if already participant
     const existing = await this.participantRepo
       .createQueryBuilder('participant')
-      .where('participant.room_id = :roomId', { roomId })
-      .andWhere('participant.user_id = :userId', { userId })
+      .where('participant.roomId = :roomId', { roomId })
+      .andWhere('participant.userId = :userId', { userId })
       .getOne();
     if (existing) return existing;
 
@@ -173,32 +191,42 @@ export class RoomService {
     const room = await this.findRoomById(roomId);
     const count = await this.participantRepo
       .createQueryBuilder('participant')
-      .where('participant.room_id = :roomId', { roomId })
+      .where('participant.roomId = :roomId', { roomId })
       .getCount();
     if (count >= room.maxParticipants) {
       throw new BadRequestException('Room is full');
     }
 
-    // Reuse existing workspace if any, or create new
-    let workspace = await this.workspaceService
-      .findAllWorkspaces(userId)
-      .then((wsList) =>
-        wsList.find((ws) => ws.name === `Workspace for ${room.name}`),
-      );
+    // Find OR create a personal workspace for this user in this room
+    let workspace = await this.workspaceRepo.findOne({
+      where: { roomId, userId }
+    });
 
     if (!workspace) {
       workspace = await this.workspaceService.createWorkspace(userId, {
-        name: `Workspace for ${room.name}`,
+        name: `Workspace for ${userId} in ${room.name}`,
         roomId,
       });
     }
 
+    const isHost = room.createdBy === userId;
     const participant = this.participantRepo.create({
       roomId,
       userId,
       workspaceId: workspace.id,
-      role: room.createdBy === userId ? 'HOST' : 'GUEST',
+      role: isHost ? 'HOST' : 'GUEST',
+      status: isHost ? 'JOINED' : 'PENDING',
     });
+    return this.participantRepo.save(participant);
+  }
+
+  async approveParticipant(roomId: string, userId: string) {
+    const participant = await this.participantRepo.findOne({
+      where: { roomId, userId },
+    });
+    if (!participant) return;
+
+    participant.status = 'JOINED';
     return this.participantRepo.save(participant);
   }
 
@@ -213,7 +241,7 @@ export class RoomService {
   async findActiveSession(roomId: string): Promise<RoomSession | null> {
     return this.sessionRepo
       .createQueryBuilder('session')
-      .where('session.room_id = :roomId', { roomId })
+      .where('session.roomId = :roomId', { roomId })
       .andWhere("session.status = 'ACTIVE'")
       .getOne();
   }
@@ -224,7 +252,7 @@ export class RoomService {
       if (!existing.hostId) {
         const host = await this.participantRepo
           .createQueryBuilder('participant')
-          .where('participant.room_id = :roomId', { roomId })
+          .where('participant.roomId = :roomId', { roomId })
           .andWhere('participant.role = :role', { role: 'HOST' })
           .getOne();
         if (host) {
@@ -237,7 +265,7 @@ export class RoomService {
 
     const host = await this.participantRepo
       .createQueryBuilder('participant')
-      .where('participant.room_id = :roomId', { roomId })
+      .where('participant.roomId = :roomId', { roomId })
       .andWhere('participant.role = :role', { role: 'HOST' })
       .getOne();
     const session = this.sessionRepo.create({
@@ -262,33 +290,29 @@ export class RoomService {
     const room = await this.findRoomById(roomId);
 
     let currentUserRole: string | null = null;
+    let currentUserStatus: string | null = null;
     if (userId) {
-      const participant = await this.participantRepo
-        .createQueryBuilder('participant')
-        .where('participant.room_id = :roomId', { roomId })
-        .andWhere('participant.user_id = :userId', { userId })
-        .getOne();
+      const participant = await this.participantRepo.findOne({
+        where: { roomId, userId },
+      });
       if (participant) {
         currentUserRole = participant.role;
+        currentUserStatus = participant.status;
       }
     }
 
     // Fetch latest session
-    const session = await this.sessionRepo
-      .createQueryBuilder('session')
-      .where('session.room_id = :roomId', { roomId })
-      .orderBy('session.started_at', 'DESC')
-      .getOne();
+    const session = await this.sessionRepo.findOne({
+      where: { roomId },
+      order: { startedAt: 'DESC' },
+    });
 
     if (!session) {
       return {
-        room: {
-          id: room.id,
-          name: room.name,
-          description: room.description,
-        },
+        room,
         session: null,
         currentUserRole,
+        currentUserStatus,
       };
     }
 
@@ -316,11 +340,7 @@ export class RoomService {
     }
 
     return {
-      room: {
-        id: room.id,
-        name: room.name,
-        description: room.description,
-      },
+      room,
       session: sessionStatus
         ? {
             id: session.id,
@@ -332,14 +352,23 @@ export class RoomService {
           }
         : null,
       currentUserRole,
+      currentUserStatus,
     };
   }
 
   async getMyRooms(userId: string): Promise<Room[]> {
-    return this.roomRepo.find({
-      where: { createdBy: userId },
-      order: { createdAt: 'DESC' },
-    });
+    const rooms = await this.roomRepo
+      .createQueryBuilder('room')
+      .leftJoinAndSelect('room.creator', 'creator')
+      .loadRelationCountAndMap('room.participantsCount', 'room.participants')
+      .where('room.createdBy = :userId', { userId })
+      .orderBy('room.createdAt', 'DESC')
+      .getMany();
+
+    return rooms.map((r) => ({
+      ...r,
+      createdBy: r.creator,
+    })) as any;
   }
 
   async updateRoom(
@@ -362,8 +391,20 @@ export class RoomService {
   }
 
   async getRooms(): Promise<Room[]> {
-    return this.roomRepo.find({
-      order: { createdAt: 'DESC' },
-    });
+    const rooms = await this.roomRepo
+      .createQueryBuilder('room')
+      .leftJoinAndSelect('room.creator', 'creator')
+      .loadRelationCountAndMap('room.participantsCount', 'room.participants')
+      .orderBy('room.createdAt', 'DESC')
+      .getMany();
+
+    return rooms.map((r) => ({
+      ...r,
+      createdBy: r.creator,
+    })) as any;
+  }
+
+  async updateRoomProblem(roomId: string, problemSlug: string): Promise<void> {
+    await this.roomRepo.update(roomId, { problemSlug });
   }
 }

@@ -209,8 +209,65 @@ export class WorkspaceService {
     dto: UpdateWorkspaceFileDto,
   ): Promise<WorkspaceFile> {
     const file = await this.findFileById(id, userId);
-    file.content = dto.content;
-    return this.fileRepo.save(file);
+    const oldPath = file.filePath;
+
+    if (dto.content !== undefined) {
+      file.content = dto.content;
+    }
+
+    if (dto.filePath !== undefined && dto.filePath !== oldPath) {
+      // Check if new path already exists in this workspace
+      const exists = await this.fileRepo.findOne({
+        where: { workspaceId: file.workspaceId, filePath: dto.filePath },
+      });
+      if (exists) {
+        throw new ConflictException('A file with the same name already exists');
+      }
+      file.filePath = dto.filePath;
+    }
+
+    const updated = await this.fileRepo.save(file);
+
+    this.fileEvents.next({
+      type: WorkspaceEventType.FILE_UPDATED,
+      workspaceId: file.workspaceId,
+      userId,
+      payload: { 
+        id, 
+        oldPath, 
+        newPath: updated.filePath,
+        content: updated.content,
+        isRename: oldPath !== updated.filePath
+      },
+    });
+
+    return updated;
+  }
+
+  async updateFileByPath(
+    workspaceId: string,
+    userId: string,
+    filePath: string,
+    content: string,
+  ): Promise<WorkspaceFile> {
+    const file = await this.fileRepo.findOne({
+      where: { workspaceId, filePath },
+    });
+    if (!file) {
+      throw new NotFoundException(`File ${filePath} not found in workspace`);
+    }
+
+    // Validate access
+    await this.findWorkspaceById(workspaceId, userId, true);
+
+    file.content = content;
+    const updated = await this.fileRepo.save(file);
+
+    // We don't necessarily need to trigger fileEvents here if we want to separate 
+    // real-time code updates from major file operations (renames, etc.)
+    // But for persistence, this is fine.
+    
+    return updated;
   }
 
   async deleteFile(id: string, userId: string): Promise<void> {

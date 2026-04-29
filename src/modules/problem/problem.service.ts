@@ -483,10 +483,22 @@ export class ProblemService {
 
   // View for Student (No hidden testcases, no solution code)
   async findOneForStudent(slug: string, user?: User, languageId?: number, examId?: string) {
-    const problem = await this.problemRepo.findOne({
-      where: { slug },
-      relations: ['createdBy'],
-    });
+    let problem;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
+    
+    if (isUuid) {
+      problem = await this.problemRepo.findOne({
+        where: { id: slug },
+        relations: ['createdBy'],
+      });
+    }
+    
+    if (!problem) {
+      problem = await this.problemRepo.findOne({
+        where: { slug },
+        relations: ['createdBy'],
+      });
+    }
 
     if (!problem) throw new NotFoundException('Problem not found');
 

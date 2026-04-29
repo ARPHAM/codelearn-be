@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { Room } from './entities/room.entity';
 import { RoomParticipant } from './entities/room-participant.entity';
 import { RoomSession } from './entities/room-session.entity';
+import { UserWorkspace } from '../workspace/entities/user-workspace.entity';
 import { RoomService } from './room.service';
 import { RoomController } from './room.controller';
 import { WorkspaceModule } from '../workspace/workspace.module';
@@ -14,7 +15,7 @@ import { RoomCleanupService } from './room-cleanup.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Room, RoomParticipant, RoomSession]),
+    TypeOrmModule.forFeature([Room, RoomParticipant, RoomSession, UserWorkspace]),
     WorkspaceModule,
     AuthModule,
     ConfigModule,

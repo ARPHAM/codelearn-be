@@ -31,6 +31,9 @@ export class RoomParticipant {
   @Column()
   role: string;
 
+  @Column({ default: 'JOINED' })
+  status: string; // 'PENDING' | 'JOINED' (New column for approval workflow)
+
   @Column({ name: 'workspace_id' })
   workspaceId: string;
 

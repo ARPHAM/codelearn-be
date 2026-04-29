@@ -18,7 +18,6 @@ import { ExamModule } from './modules/exam/exam.module';
 import { ExecutionModule } from './modules/execution/execution.module';
 import { ExerciseModule } from './modules/exercise/exercise.module';
 import { LearningPathModule } from './modules/learning-path/learning-path.module';
-import { PairRoomsModule } from './modules/pair-rooms/pair-rooms.module';
 import { PlagiarismModule } from './modules/plagiarism/plagiarism.module';
 import { RunModule } from './modules/run/run.module';
 import { SubmissionModule } from './modules/submission/submission.module';
@@ -168,7 +167,6 @@ const ALL_ENTITIES = [
     ExecutionModule,
     ExerciseModule,
     LearningPathModule,
-    PairRoomsModule,
     PlagiarismModule,
     RunModule,
     SubmissionModule,

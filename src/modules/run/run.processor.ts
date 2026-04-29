@@ -140,13 +140,19 @@ export class RunProcessor {
       const timeLimitSecs = Math.ceil(timeLmt / 1000);
       const wrapperScriptPath = path.join(workspace, '_exec_wrapper.sh');
 
+      // Replace {entry} in both compile and run commands
+      const finalCompileCmd = compileCmd ? compileCmd.replace(/{entry}/g, entryFile) : '';
+      const finalRunCmd = runCmd.replace(/{entry}/g, entryFile);
+
       const wrapperContent = [
         '#!/bin/sh',
-        // Run compilation if present (don't time this part)
-        compileCmd ? `${compileCmd}` : '',
+        'set -e', // Exit immediately if a command fails
+        // Run compilation if present (don\'t time this part)
+        finalCompileCmd,
+        'set +e', // Allow timeout to handle exit code
         // Start timing now
         `s=$(date +%s%N)`,
-        `timeout ${timeLimitSecs}s ${runCmd.replace('{entry}', entryFile)} < .std_input.txt`,
+        `timeout ${timeLimitSecs}s ${finalRunCmd} < .std_input.txt`,
         `ret=$?`,
         `e=$(date +%s%N)`,
         `echo`,

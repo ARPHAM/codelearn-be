@@ -56,10 +56,21 @@ export class RoomGateway
         event.workspaceId,
       );
       if (roomId) {
-        const socketEvent =
-          event.type === WorkspaceEventType.FILE_CREATED
-            ? 'file_create'
-            : 'file_delete';
+        let socketEvent: string;
+        switch (event.type) {
+          case WorkspaceEventType.FILE_CREATED:
+            socketEvent = 'file_created';
+            break;
+          case WorkspaceEventType.FILE_DELETED:
+            socketEvent = 'file_deleted';
+            break;
+          case WorkspaceEventType.FILE_UPDATED:
+            socketEvent = event.payload.isRename ? 'file_renamed' : 'file_updated';
+            break;
+          default:
+            return;
+        }
+
         this.server.to(roomId).emit(socketEvent, {
           userId: event.userId,
           workspaceId: event.workspaceId,
@@ -146,9 +157,22 @@ export class RoomGateway
 
         state.sessionTimeout = setTimeout(
           async () => {
-            await this.roomService.endSession(roomId);
-            this.server.to(roomId).emit('room_closed', { roomId });
-            this.server.in(roomId).disconnectSockets(true);
+            // DOUBLE CHECK: Did a host reconnect in the meantime?
+            const currentState = this.roomState.get(roomId);
+            if (currentState && currentState.hostSockets.size > 0) {
+              console.log(`[RoomGateway] Room ${roomId} is active again, canceling deletion`);
+              return;
+            }
+
+            console.log(`[RoomGateway] Deleting room ${roomId} due to host inactivity`);
+            try {
+              await this.roomService.deleteRoom(roomId);
+              this.server.to(roomId).emit('room_closed', { roomId });
+              this.server.in(roomId).disconnectSockets(true);
+              this.roomState.delete(roomId);
+            } catch (err) {
+              console.error(`[RoomGateway] Failed to delete room ${roomId}:`, err.message);
+            }
           },
           5 * 60 * 1000,
         );
@@ -179,13 +203,29 @@ export class RoomGateway
       }
     }
 
-    // Clean up empty room entries
-    if (state.users.size === 0) {
+    // Clean up empty room entries - ONLY IF NO TIMEOUT IS RUNNING
+    if (state.users.size === 0 && !state.sessionTimeout) {
       this.roomState.delete(roomId);
     }
 
     client.leave(roomId);
     client.data.joinedRooms?.delete(roomId);
+
+    // Notify lobby about the participant count change
+    this.broadcastRoomUpdateToLobby(roomId);
+  }
+
+  @SubscribeMessage('join_lobby')
+  handleJoinLobby(@ConnectedSocket() client: Socket) {
+    client.join('lobby');
+    console.log(`[RoomGateway] Client ${client.id} joined lobby room`);
+    return { status: 'joined_lobby' };
+  }
+
+  @SubscribeMessage('leave_lobby')
+  handleLeaveLobby(@ConnectedSocket() client: Socket) {
+    client.leave('lobby');
+    return { status: 'left_lobby' };
   }
 
   @SubscribeMessage('join_room')
@@ -208,10 +248,44 @@ export class RoomGateway
     }
 
     let state = this.roomState.get(roomId);
+    if (!state) {
+      state = { users: new Map(), hostSockets: new Set() };
+      this.roomState.set(roomId, state);
+    }
 
-    // CRITICAL: Block non-host users if no host is online
+    client.join(roomId);
+    client.data.joinedRooms.add(roomId);
+
+    // Track online status immediately for everyone
+    let userSockets = state.users.get(userId);
+    const isFirstSocket = !userSockets || userSockets.size === 0;
+    if (!userSockets) {
+      userSockets = new Set<string>();
+      state.users.set(userId, userSockets);
+    }
+    userSockets.add(client.id);
+
+    // NEW: Handle Approval Workflow
+    if (participant.status === 'PENDING') {
+      client.emit('participant_pending', { userId, roomId });
+      // Notify all host sockets in the room
+      this.server.to(roomId).emit('join_request', { 
+          userId, 
+          user: participant.user || { id: userId } 
+      });
+      
+      // Still notify others and send list even if pending
+      if (isFirstSocket) {
+        client.to(roomId).emit('user_joined', { userId });
+      }
+      const onlineUserIds = Array.from(state.users.keys());
+      client.emit('room_members_online', { roomId, userIds: onlineUserIds });
+      return;
+    }
+
+    // CRITICAL: Block non-host users if no host is online (for already JOINED users)
     if (participant.role !== 'HOST') {
-      if (!state || state.hostSockets.size === 0) {
+      if (state.hostSockets.size === 0) {
         client.emit('error', {
           message:
             'Room is strictly managed by host. Please wait for host to join online.',
@@ -221,41 +295,20 @@ export class RoomGateway
       }
     }
 
-    client.join(roomId);
-    client.data.joinedRooms.add(roomId);
-
-    if (!state) {
-      state = { users: new Map(), hostSockets: new Set() };
-      this.roomState.set(roomId, state);
-    }
-
     await this.roomService.startSession(roomId);
 
     if (participant.role === 'HOST') {
       state.hostSockets.add(client.id);
-
       this.runtimeStore.clearClosing(roomId);
-
       if (state.sessionTimeout) {
         clearTimeout(state.sessionTimeout);
         state.sessionTimeout = undefined;
-
         client.to(roomId).emit('room_active', { roomId });
         client.emit('room_active', { roomId });
       }
     }
 
-    let userSockets = state.users.get(userId);
-    const isFirstSocket = !userSockets || userSockets.size === 0;
-
-    if (!userSockets) {
-      userSockets = new Set<string>();
-      state.users.set(userId, userSockets);
-    }
-    userSockets.add(client.id);
-
     // If this is the FIRST socket of this user in room:
-    // emit "user_joined" to others (exclude sender)
     if (isFirstSocket) {
       client.to(roomId).emit('user_joined', { userId });
     }
@@ -263,6 +316,9 @@ export class RoomGateway
     // Always send the full online members list back to the joining client
     const onlineUserIds = Array.from(state.users.keys());
     client.emit('room_members_online', { roomId, userIds: onlineUserIds });
+
+    // Notify lobby about the participant count change
+    this.broadcastRoomUpdateToLobby(roomId);
   }
 
   @SubscribeMessage('leave_room')
@@ -296,8 +352,22 @@ export class RoomGateway
     }
 
     // Fast boolean check if user is participant of room
-    const isParticipant = await this.roomService.isParticipant(roomId, userId);
-    if (!isParticipant) return;
+    const participant = await this.roomService.getParticipant(roomId, userId);
+    if (!participant) return;
+
+    // Persist to the SENDER'S own workspace
+    try {
+      if (participant.workspaceId) {
+        await this.workspaceService.updateFileByPath(
+          participant.workspaceId,
+          userId,
+          filePath,
+          content,
+        );
+      }
+    } catch (err) {
+      console.error(`[RoomGateway] Failed to persist code change: ${err.message}`);
+    }
 
     // Broadcast (only to others in the room)
     client.to(roomId).emit('code_update', {
@@ -424,6 +494,60 @@ export class RoomGateway
         filePath: payload.filePath,
         content: payload.content,
       });
+    }
+  }
+
+  @SubscribeMessage('select_problem')
+  async handleSelectProblem(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { roomId: string; problemSlug: string },
+  ) {
+    const userId = client.data.user?.userId;
+    if (!payload || !payload.roomId || !payload.problemSlug || !userId) return;
+
+    // Check if user is HOST
+    const participant = await this.roomService.getParticipant(
+      payload.roomId,
+      userId,
+    );
+    if (!participant || participant.role !== 'HOST') return;
+
+    // Update room in DB
+    await this.roomService.updateRoomProblem(payload.roomId, payload.problemSlug);
+
+    // Broadcast to all (including sender to confirm)
+    this.server.to(payload.roomId).emit('problem_selected', {
+      problemSlug: payload.problemSlug,
+    });
+  }
+
+  notifyApproved(roomId: string, userId: string) {
+    this.server.to(roomId).emit('participant_approved', { userId });
+  }
+
+  private async broadcastRoomUpdateToLobby(roomId: string) {
+    try {
+      const room = await this.roomService.findRoomById(roomId);
+      const participants = await this.roomService.getParticipants(roomId);
+      
+      // Map creator info as we do in service
+      const creator = await this.roomService['roomRepo'].manager.getRepository('User').findOne({ 
+        where: { id: room.createdBy },
+        select: ['id', 'fullName', 'email', 'avatarUrl' as any]
+      });
+
+      const lobbySize = this.server.sockets.adapter.rooms.get('lobby')?.size || 0;
+      console.log(`[RoomGateway] Broadcasting room ${roomId} update to ${lobbySize} clients in lobby`);
+
+      this.server.to('lobby').emit('room_updated', {
+        id: room.id,
+        participantsCount: participants.length,
+        createdBy: creator,
+        status: room.status,
+        name: room.name
+      });
+    } catch (err) {
+      console.error(`[RoomGateway] Error broadcasting to lobby:`, err.message);
     }
   }
 }

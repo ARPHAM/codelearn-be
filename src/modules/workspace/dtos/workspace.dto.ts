@@ -50,8 +50,13 @@ export class CreateWorkspaceFileDto {
 }
 
 export class UpdateWorkspaceFileDto {
-  @ApiProperty()
+  @ApiProperty({ required: false })
   @IsString()
-  @IsNotEmpty()
-  content: string;
+  @IsOptional()
+  filePath?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  content?: string;
 }

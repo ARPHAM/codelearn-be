@@ -5,8 +5,10 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
+import { RoomParticipant } from './room-participant.entity';
 
 export enum RoomType {
   MEETING = 'MEETING',
@@ -27,8 +29,8 @@ export class Room {
   @Column({ type: 'enum', enum: RoomType, default: RoomType.MEETING })
   type: RoomType;
 
-  @Column({ name: 'problem_id', nullable: true })
-  problemId: number;
+  @Column({ name: 'problem_slug', nullable: true })
+  problemSlug: string;
 
   @Column({ default: 'OPEN' })
   status: string;
@@ -42,6 +44,9 @@ export class Room {
 
   @Column({ name: 'max_participants', default: 10 })
   maxParticipants: number;
+
+  @OneToMany(() => RoomParticipant, (participant) => participant.room)
+  participants: RoomParticipant[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
