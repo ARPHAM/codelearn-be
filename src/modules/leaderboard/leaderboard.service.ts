@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { User } from '../user/entities/user.entity';
 import { Submission } from '../submission/entities/submission.entity';
+import { Role } from '../../common/enums/role.enum';
 
 @Injectable()
 export class LeaderboardService {
@@ -13,10 +14,14 @@ export class LeaderboardService {
     private submissionRepo: Repository<Submission>,
   ) {}
 
-  async getLeaderboard(period: string, limit: number, currentUser?: User) {
+  async getLeaderboard(period: string, type: string, limit: number, currentUser?: User) {
+    const isXp = type === 'XP';
+    const orderField = isXp ? 'xp' : 'rating';
+
     // Basic logic: rank by XP/Rating
     const users = await this.userRepo.find({
-      order: { rating: 'DESC' },
+      where: { role: Role.STUDENT },
+      order: { [orderField]: 'DESC' },
       take: limit,
     });
 
@@ -38,7 +43,7 @@ export class LeaderboardService {
           userId: u.id,
           name: u.fullName,
           avatar: u.avatarUrl,
-          score: u.rating,
+          score: isXp ? u.xp : u.rating,
           solvedCount,
           winRate: 0.75, // Mock from Code Battle
           streak,
@@ -49,9 +54,11 @@ export class LeaderboardService {
     let currentRank = 0;
     if (currentUser) {
       // Find rank of current user
+      const currentUserScore = isXp ? currentUser.xp : currentUser.rating;
       const topRank = await this.userRepo
         .createQueryBuilder('u')
-        .where('u.rating > :rating', { rating: currentUser.rating })
+        .where(`u.${orderField} > :score`, { score: currentUserScore })
+        .andWhere('u.role = :role', { role: Role.STUDENT })
         .getCount();
       currentRank = topRank + 1;
     }
@@ -59,7 +66,7 @@ export class LeaderboardService {
     return {
       items,
       currentUser: currentUser
-        ? { rank: currentRank, score: currentUser.rating }
+        ? { userId: currentUser.id, rank: currentRank, score: isXp ? currentUser.xp : currentUser.rating }
         : null,
     };
   }

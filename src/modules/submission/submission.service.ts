@@ -51,11 +51,7 @@ export class SubmissionService {
     const memoryLimit = problem.memoryLimit;
 
     // Tìm kiếm ngôn ngữ
-    const languages = await this.languageRepo.find();
-    const language = languages.find(l => 
-      l.name.toLowerCase() === dto.language.toLowerCase() ||
-      l.ext.toLowerCase() === (dto.language.startsWith('.') ? dto.language.toLowerCase() : '.' + dto.language.toLowerCase())
-    );
+    const language = await this.languageRepo.findOne({ where: { id: dto.languageId } });
     
     if (!language) throw new NotFoundException('Ngon ngu khong ho tro');
 
@@ -196,6 +192,7 @@ export class SubmissionService {
       status: SubmissionStatus.QUEUED,
       context,
       contextId,
+      type: 'SUBMIT',
     });
 
     const saved = await this.submissionRepo.save(submission);
@@ -227,8 +224,15 @@ export class SubmissionService {
         order: { createdAt: 'DESC' }
       });
       if (submissions.length >= 5) {
-        const toDelete = submissions.slice(4); // Giữ lại 4 bản để slot thứ 5 cho bản mới
-        await this.submissionRepo.remove(toDelete);
+        // Tìm bản ghi có điểm cao nhất để bảo vệ khỏi việc bị xóa (Chống exploit điểm XP)
+        const bestSub = submissions.reduce((best, curr) => ((curr.score || 0) > (best.score || 0) ? curr : best), submissions[0]);
+        
+        // Cắt lấy phần cũ (từ index 4 trở đi) nhưng LOẠI TRỪ bản ghi điểm cao nhất
+        const toDelete = submissions.slice(4).filter(sub => sub.id !== bestSub.id);
+        
+        if (toDelete.length > 0) {
+          await this.submissionRepo.remove(toDelete);
+        }
       }
     } else if (context === 'EXAM' || context === 'BATTLE') {
       const existing = await this.submissionRepo.find({
@@ -252,7 +256,9 @@ export class SubmissionService {
 
     let results = [];
     try {
-      results = sub.results ? JSON.parse(sub.results) : [];
+      if (sub.context !== 'EXAM') {
+        results = sub.results ? JSON.parse(sub.results) : [];
+      }
     } catch (e) {
       console.error('Error parsing results:', e);
     }

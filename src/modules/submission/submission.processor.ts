@@ -335,14 +335,78 @@ export class SubmissionProcessor {
       }
 
       // Logic chuyển đổi trạng thái khi xác thực bài giải thành công (isVerified)
+      let subContext = 'EXERCISE';
       try {
         const sub = await this.submissionRepo.findOne({
             where: { id: submissionId },
-            relations: ['problemVersion']
+            relations: ['problemVersion', 'problemVersion.problem', 'user', 'language']
         });
-        if (sub && sub.context === 'SYSTEM_VERIFY' && finalStatus === SubmissionStatus.ACCEPTED) {
-            await this.versionRepo.update(sub.problemVersion.id, { isVerified: true });
-            console.log(`[Submission] Problem Version ${sub.problemVersion.id} is now VERIFIED.`);
+        if (sub) {
+            subContext = sub.context;
+            const problemId = sub.problemVersion?.problem?.id;
+            const userId = sub?.user?.id;
+            const languageId = sub?.language?.id;
+
+            if (sub.context === 'SYSTEM_VERIFY' && finalStatus === SubmissionStatus.ACCEPTED) {
+                await this.versionRepo.update(sub.problemVersion.id, { isVerified: true });
+                console.log(`[Submission] Problem Version ${sub.problemVersion.id} is now VERIFIED.`);
+            }
+
+            // Cập nhật thống kê bài tập (Lượt nộp, Tỉ lệ trúng tuyển) cho chế độ Luyện tập
+            if (problemId && subContext === 'EXERCISE') {
+                try {
+                    // 1. Tính toán và cộng điểm XP cho User một cách an toàn (tránh race condition spam)
+                    if (userId) {
+                        await this.submissionRepo.manager.transaction(async (manager) => {
+                            // Lock dòng user để tránh 2 request nộp bài cùng lúc làm lộn xộn XP
+                            await manager.query(`SELECT 1 FROM users WHERE id = $1 FOR UPDATE`, [userId]);
+                            
+                            // Lấy điểm cao nhất TRƯỚC ĐÓ của user cho bài này THEO NGÔN NGỮ (loại trừ bài nộp hiện tại)
+                            const prevMaxRes = await manager.query(
+                                `SELECT COALESCE(MAX(s.score), 0) as max_score
+                                 FROM submissions s
+                                 JOIN problem_versions pv ON s.problem_version_id = pv.id
+                                 WHERE pv.problem_id = $1 AND s.user_id = $2 AND s.id != $3 AND s.context = 'EXERCISE' AND s.language_id = $4`,
+                                [problemId, userId, submissionId, languageId]
+                            );
+                            const prevMaxScore = Number(prevMaxRes[0]?.max_score || 0);
+
+                            // Nếu điểm lần này cao hơn kỷ lục cũ, cộng thêm phần chênh lệch
+                            if (totalScore > prevMaxScore) {
+                                const xpDelta = totalScore - prevMaxScore;
+                                await manager.query(
+                                    `UPDATE users SET xp = xp + $1 WHERE id = $2`,
+                                    [xpDelta, userId]
+                                );
+                                console.log(`[Submission] Tặng ${xpDelta} XP cho User ${userId}. Kỷ lục cũ: ${prevMaxScore}, mới: ${totalScore}.`);
+                            }
+                        });
+                    }
+
+                    // 2. Cập nhật thống kê bài tập
+                    await this.submissionRepo.query(
+                        `UPDATE problem_stats
+                         SET total_submissions = (
+                               SELECT COUNT(*) FROM submissions s 
+                               JOIN problem_versions pv ON s.problem_version_id = pv.id 
+                               WHERE pv.problem_id = $1 AND s.type = 'SUBMIT' AND s.context = 'EXERCISE'
+                             ),
+                             acceptance_rate = (
+                               SELECT COALESCE(
+                                 CAST(SUM(CASE WHEN s.status = 'accepted' THEN 1 ELSE 0 END) AS FLOAT) / 
+                                 NULLIF(COUNT(*), 0) * 100
+                               , 0)
+                               FROM submissions s 
+                               JOIN problem_versions pv ON s.problem_version_id = pv.id 
+                               WHERE pv.problem_id = $1 AND s.type = 'SUBMIT' AND s.context = 'EXERCISE'
+                             )
+                         WHERE problem_id = $1`,
+                        [problemId]
+                    );
+                } catch (statsErr) {
+                    console.error('[Submission] Lỗi cập nhật thống kê/XP:', statsErr);
+                }
+            }
         }
       } catch (verifyError) {
         console.error('VERIFY ERROR:', verifyError);
@@ -350,15 +414,20 @@ export class SubmissionProcessor {
 
       // STEP 7: Sending websocket result
       try {
-        this.executionGateway.sendResult(submissionId, {
+        const wsData: any = {
           status: finalStatus,
           score: totalScore,
           maxScore: totalMaxScore,
           testcasesPassed,
           testcasesTotal: results.length,
-          results: results,
           error: lastError,
-        });
+        };
+
+        if (subContext !== 'EXAM') {
+          wsData.results = results;
+        }
+
+        this.executionGateway.sendResult(submissionId, wsData);
         console.log(
           `[Submission] Result emitted via WebSocket for ID: ${submissionId}`,
         );

@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   Column,
   ManyToOne,
   JoinColumn,
@@ -15,7 +15,7 @@ import { Language } from '../../problem/entities/language.entity';
 @Index(['user'])
 @Index(['problemVersion'])
 export class Submission {
-  @PrimaryColumn({ type: 'varchar' })
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @ManyToOne(() => User)

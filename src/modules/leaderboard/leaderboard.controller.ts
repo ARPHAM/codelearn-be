@@ -23,8 +23,9 @@ export class LeaderboardController {
   getLeaderboard(
     @Query('period') period: string = 'ALL_TIME',
     @Query('limit', new ParseIntPipe({ optional: true })) limit: number = 50,
+    @Query('type') type: string = 'RATING',
     @CurrentUser() user: User,
   ) {
-    return this.leaderboardService.getLeaderboard(period, limit, user);
+    return this.leaderboardService.getLeaderboard(period, type, limit, user);
   }
 }

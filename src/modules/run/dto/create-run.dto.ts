@@ -17,6 +17,10 @@ export class RunFileDto {
   @IsString()
   @IsNotEmpty()
   content: string;
+
+  @IsString()
+  @IsOptional()
+  language?: string;
 }
 
 export class CreateRunDto {
@@ -27,6 +31,10 @@ export class CreateRunDto {
   @IsNumber()
   @IsNotEmpty()
   languageId: number;
+
+  @IsString()
+  @IsOptional()
+  language?: string;
 
   @IsString()
   @IsOptional()
@@ -45,6 +53,10 @@ export class CreateRunDto {
   @IsString()
   @IsOptional()
   input?: string;
+
+  @IsString()
+  @IsOptional()
+  examId?: string;
 
   @IsOptional()
   answers?: Record<string, string[]>;

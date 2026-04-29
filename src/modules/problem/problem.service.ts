@@ -260,7 +260,7 @@ export class ProblemService {
         .innerJoin('problem_versions', 'pv', 'pv.id = sub.problem_version_id')
         .where('pv.problem_id = problem.id')
         .andWhere('sub.user_id = :userId', { userId: user.id })
-        .andWhere('sub.status = :passedStatus', { passedStatus: 'PASSED' })
+        .andWhere('sub.status = :passedStatus', { passedStatus: 'accepted' })
         .getQuery();
 
       if (query.status === 'SOLVED') {
@@ -277,7 +277,72 @@ export class ProblemService {
 
     const [items, total] = await qb.getManyAndCount();
 
-    return { items, total, page, limit };
+    // Determine max score for each problem version dynamically from testcases
+    const versionIds = items.map(i => i.currentVersionId).filter(Boolean);
+    let maxScoresMap = new Map<string, number>();
+    if (versionIds.length > 0) {
+      const tcScores = await this.testcaseRepo.createQueryBuilder('tc')
+        .select('tc.problem_version_id', 'versionId')
+        .addSelect('SUM(tc.score)', 'totalScore')
+        .where('tc.problem_version_id IN (:...versionIds)', { versionIds })
+        .groupBy('tc.problem_version_id')
+        .getRawMany();
+      tcScores.forEach(t => maxScoresMap.set(t.versionId, Number(t.totalScore || 0)));
+    }
+
+    // Determine solved status, solved languages, and best score
+    let solvedProblemIds = new Set<string>();
+    let solvedLanguagesMap = new Map<string, Set<string>>();
+    let bestScoreMap = new Map<string, number>();
+
+    if (user && items.length > 0) {
+      const itemIds = items.map(i => i.id);
+      const { In } = require('typeorm');
+      
+      const userSubmissions = await this.subRepo.find({
+        select: ['id', 'status', 'score', 'problemVersion', 'language'],
+        where: {
+          user: { id: user.id },
+          problemVersion: { problem: { id: In(itemIds) } }
+        },
+        relations: ['problemVersion', 'problemVersion.problem', 'language']
+      });
+
+      for (const sub of userSubmissions) {
+        const pid = sub.problemVersion?.problem?.id;
+        if (!pid) continue;
+
+        // Track best score
+        const currentBest = bestScoreMap.get(pid) || 0;
+        if ((sub.score || 0) > currentBest) {
+          bestScoreMap.set(pid, sub.score);
+        }
+
+        // Track solved languages
+        if (sub.status === 'accepted' && sub.language) {
+          let langs = solvedLanguagesMap.get(pid);
+          if (!langs) {
+            langs = new Set<string>();
+            solvedLanguagesMap.set(pid, langs);
+          }
+          langs.add(sub.language.name);
+          solvedProblemIds.add(pid);
+        }
+      }
+    }
+
+    const formattedItems = items.map((p) => {
+      const isSolved = solvedProblemIds.has(p.id);
+      return {
+        ...p,
+        status: isSolved ? 'SOLVED' : 'UNSOLVED',
+        maxScore: maxScoresMap.get(p.currentVersionId) || 0,
+        studentScore: bestScoreMap.get(p.id) || 0,
+        solvedLanguages: Array.from(solvedLanguagesMap.get(p.id) || []),
+      };
+    });
+
+    return { items: formattedItems, total, page, limit };
   }
 
   // Full detail view for Edit (Admin or creator Lecturer)

@@ -1,4 +1,5 @@
-import { IsString, IsNumber, IsOptional, IsArray } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CodeFileDto {
@@ -9,6 +10,11 @@ export class CodeFileDto {
   @ApiProperty()
   @IsString()
   content: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  language?: string;
 }
 
 export class CreateSubmissionDto {
@@ -16,23 +22,14 @@ export class CreateSubmissionDto {
   @IsString()
   problemVersionId: string;
 
-  @ApiProperty({
-    enum: [
-      'python',
-      'cpp',
-      'java',
-      'javascript',
-      'typescript',
-      'csharp',
-      'go',
-      'rust',
-      'php',
-      'ruby',
-      'sql',
-    ],
-  })
+  @ApiPropertyOptional()
   @IsString()
-  language: string;
+  @IsOptional()
+  language?: string;
+
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  languageId: number;
 
   @ApiProperty({ example: 'main.py' })
   @IsString()
@@ -40,6 +37,8 @@ export class CreateSubmissionDto {
 
   @ApiProperty({ type: [CodeFileDto] })
   @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CodeFileDto)
   files: CodeFileDto[];
 
   @ApiPropertyOptional({ example: 'uuid-battle-here' })
