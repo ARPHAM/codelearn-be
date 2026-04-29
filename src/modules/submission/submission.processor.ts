@@ -74,8 +74,8 @@ export class SubmissionProcessor {
     let totalScore = 0;
     let totalMaxScore = 0;
     let testcasesPassed = 0;
-    let maxRuntime = 0;
-    let totalMemory = 0;
+    let totalRuntime = 0;
+    let maxMemory = 0;
     let lastError = '';
     const results: any[] = [];
 
@@ -178,8 +178,13 @@ export class SubmissionProcessor {
           `timeout ${timeLimitSecs}s ${runCmd.replace('{entry}', entryFile)} < .std_input.txt`,
           `ret=$?`,
           `e=$(date +%s%N)`,
+          `# Try to get memory from cgroup v1 or v2`,
+          `mem=0`,
+          `if [ -f /sys/fs/cgroup/memory/memory.max_usage_in_bytes ]; then mem=$(cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes); fi`,
+          `if [ $mem -eq 0 ] && [ -f /sys/fs/cgroup/memory.current ]; then mem=$(cat /sys/fs/cgroup/memory.current); fi`,
           `echo`,
           `echo "${marker}runtime:$(( (e-s)/1000000 ))"`,
+          `echo "${marker}memory:$(( mem/1024 ))"`,
           `echo "${marker}exitcode:$ret"`,
           `exit $ret`,
         ].join('\n');
@@ -208,6 +213,7 @@ export class SubmissionProcessor {
         let tcStdout = '';
         let tcStderr = '';
         let tcExecutionTime = 0;
+        let tcMemory = 0;
 
         try {
           const { stdout, stderr } = await execAsync(dockerCmd, {
@@ -223,6 +229,14 @@ export class SubmissionProcessor {
           if (runtimeMatch) {
             tcExecutionTime = parseInt(runtimeMatch[1]);
             cleanStdout = cleanStdout.replace(runtimeMatch[0], '');
+          }
+
+          const memoryMatch = stdout.match(
+            new RegExp(`${marker}memory:(\\d+)`),
+          );
+          if (memoryMatch) {
+            tcMemory = parseInt(memoryMatch[1]);
+            cleanStdout = cleanStdout.replace(memoryMatch[0], '');
           }
 
           const exitCodeMatch = stdout.match(
@@ -278,8 +292,9 @@ export class SubmissionProcessor {
 
         const runtime =
           tcExecutionTime || Math.max(0, Date.now() - startTime - 500);
-        maxRuntime = Math.max(maxRuntime, runtime);
-        totalMemory = 0; // Future enhancement
+        totalRuntime += runtime;
+        const memory = (typeof tcMemory !== 'undefined' ? tcMemory : 0);
+        maxMemory = Math.max(maxMemory, memory);
 
         if (tcStatus === SubmissionStatus.ACCEPTED) {
           testcasesPassed++;
@@ -324,7 +339,8 @@ export class SubmissionProcessor {
         await this.submissionRepo.update(submissionId, {
           status: finalStatus,
           errorMessage: lastError,
-          runtime: maxRuntime,
+          runtime: totalRuntime,
+          memory: maxMemory,
           score: scoreToSave,
           maxScore: totalMaxScore,
           testcasePassed: testcasesPassed,

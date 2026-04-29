@@ -66,5 +66,20 @@ export class ListSubmissionsDto {
   @IsString()
   @IsOptional()
   status?: string;
-  @ApiPropertyOptional() @IsNumber() @IsOptional() page?: number;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  search?: string;
+  @ApiPropertyOptional()
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  page?: number;
+
+  @ApiPropertyOptional()
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  limit?: number;
 }

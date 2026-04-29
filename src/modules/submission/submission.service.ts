@@ -277,26 +277,65 @@ export class SubmissionService {
     };
   }
 
-  async getByExercise(problemVersionId: string, query: ListSubmissionsDto) {
+  async getByExercise(problemId: string, query: ListSubmissionsDto) {
     const qb = this.submissionRepo
       .createQueryBuilder('s')
       .leftJoinAndSelect('s.user', 'u')
-      .where('s.problemVersionId = :problemVersionId', { problemVersionId });
+      .leftJoinAndSelect('s.language', 'l')
+      .innerJoin('s.problemVersion', 'pv')
+      .where('pv.problem_id = :problemId', { problemId });
+
+    // Calculate Global Stats (ignore search/page)
+    const globalStatsQb = this.submissionRepo
+      .createQueryBuilder('s')
+      .innerJoin('s.problemVersion', 'pv')
+      .where('pv.problem_id = :problemId', { problemId });
+    
+    const [allSubmissions, totalAll] = await globalStatsQb.getManyAndCount();
+    const passCount = allSubmissions.filter(s => s.status === 'accepted').length;
+    const avgScore = totalAll > 0 
+      ? allSubmissions.reduce((acc, s) => acc + (s.score || 0), 0) / totalAll 
+      : 0;
+
+    // Apply Search/Filter
     if (query.status && query.status !== 'all')
       qb.andWhere('s.status = :status', { status: query.status });
+
+    if (query.search) {
+      qb.andWhere('u.full_name ILIKE :search', { search: `%${query.search}%` });
+    }
+
     const page = query.page ?? 1;
-    qb.skip((page - 1) * 20).take(20);
+    const limit = query.limit ?? 20;
+    qb.skip((page - 1) * limit).take(limit);
+    qb.orderBy('s.createdAt', 'DESC');
+
     const [submissions, total] = await qb.getManyAndCount();
+
     return {
       submissions: submissions.map((s) => ({
         id: s.id,
-        userId: s.user?.id,
-        studentName: s.user?.fullName,
+        user: {
+          id: s.user?.id,
+          fullName: s.user?.fullName,
+          email: s.user?.email,
+        },
         score: s.score,
+        maxScore: s.maxScore,
         status: s.status,
-        submittedAt: s.createdAt,
+        language: s.language?.name || 'Unknown',
+        executionTime: s.runtime,
+        memoryUsage: s.memory,
+        results: s.results ? (typeof s.results === 'string' ? JSON.parse(s.results) : s.results) : [],
+        code: s.code ? (typeof s.code === 'string' ? JSON.parse(s.code) : s.code) : null,
+        createdAt: s.createdAt.toISOString(),
       })),
       total,
+      summary: {
+        totalSubmissions: totalAll,
+        passRate: totalAll > 0 ? Math.round((passCount / totalAll) * 100) : 0,
+        averageScore: Math.round(avgScore),
+      },
     };
   }
 
