@@ -23,6 +23,13 @@ export class UserController {
     return this.userService.findAllLecturers();
   }
 
+  @Get('students')
+  @Roles(Role.ADMIN, Role.LECTURER)
+  @ApiOperation({ summary: 'Lấy danh sách sinh viên' })
+  findAllStudents() {
+    return this.userService.findAllStudents();
+  }
+
   @Patch('profile')
   @Roles(Role.ADMIN, Role.LECTURER, Role.STUDENT)
   @ApiOperation({ summary: 'Cập nhật thông tin cá nhân (fullName, mssv, major, avatarUrl)' })
@@ -41,5 +48,12 @@ export class UserController {
     @Body() dto: ChangePasswordDto,
   ) {
     return this.userService.changePassword(user.id, dto);
+  }
+
+  @Get('stats')
+  @Roles(Role.STUDENT)
+  @ApiOperation({ summary: 'Lấy thống kê của sinh viên (XP, solvedCount, rank)' })
+  getStats(@CurrentUser() user: User) {
+    return this.userService.getStudentStats(user.id);
   }
 }

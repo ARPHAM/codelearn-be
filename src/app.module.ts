@@ -65,6 +65,9 @@ import { AuditLog } from './modules/admin/entities/audit-log.entity';
 import { UserSkillNode } from './modules/learning-path/entities/user-skill-node.entity';
 import { BattleSession } from './modules/battle/entities/battle-session.entity';
 
+import { Notification } from './modules/notification/entities/notification.entity';
+import { NotificationModule } from './modules/notification/notification.module';
+
 const ALL_ENTITIES = [
   User,
   AssignmentProblem,
@@ -99,6 +102,7 @@ const ALL_ENTITIES = [
   AuditLog,
   UserSkillNode,
   BattleSession,
+  Notification,
 ];
 
 @Module({
@@ -177,6 +181,7 @@ const ALL_ENTITIES = [
     BankModule,
     AiModule,
     UserModule,
+    NotificationModule,
   ],
   providers: [
     {

@@ -56,4 +56,14 @@ export class FilterProblemDto {
   @Min(1)
   @IsOptional()
   limit?: number = 10;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  sortBy?: string;
+
+  @ApiPropertyOptional({ enum: ['ASC', 'DESC'] })
+  @IsEnum(['ASC', 'DESC'])
+  @IsOptional()
+  sortOrder?: 'ASC' | 'DESC' = 'DESC';
 }

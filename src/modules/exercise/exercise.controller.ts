@@ -36,6 +36,12 @@ export class ExerciseController {
     return this.exerciseService.findAll(query);
   }
 
+  @Get('course/:courseId')
+  @ApiOperation({ summary: 'Lay danh sach bai tap cua mot lop hoc' })
+  findAllForCourse(@Param('courseId') courseId: string) {
+    return this.exerciseService.findAll({ courseId });
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Chi tiet bai tap' })
   findOne(@Param('id', ParseIntPipe) id: number) {
@@ -60,5 +66,21 @@ export class ExerciseController {
     @CurrentUser() user: User,
   ) {
     return this.exerciseService.update(id, dto, user);
+  }
+
+  @Post(':id/submit-approval')
+  @UseGuards(RolesGuard)
+  @Roles(Role.LECTURER, Role.ADMIN)
+  @ApiOperation({ summary: 'Gui bai tap cho Admin duyet' })
+  submit(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: User) {
+    return this.exerciseService.submitForApproval(id, user);
+  }
+
+  @Post(':id/approve')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Admin phe duyet bai tap' })
+  approve(@Param('id', ParseIntPipe) id: number) {
+    return this.exerciseService.approve(id);
   }
 }

@@ -48,6 +48,10 @@ export class CreateClassDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  lecturerId?: string;
 }
 
 export class AssignClassUsersDto {

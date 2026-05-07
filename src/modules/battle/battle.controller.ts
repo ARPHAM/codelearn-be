@@ -72,6 +72,12 @@ export class BattleController {
     return this.battleService.cancel(id, user);
   }
 
+  @Post(':id/surrender')
+  @ApiOperation({ summary: 'Đầu hàng' })
+  surrender(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.battleService.surrender(id, user.id);
+  }
+
   @Post(':id/submit')
   @ApiOperation({ summary: 'Nộp bài thi đấu' })
   submit(

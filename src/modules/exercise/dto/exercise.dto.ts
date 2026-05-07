@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsBoolean,
   ValidateNested,
+  IsUUID,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -33,7 +34,7 @@ export class CreateExerciseDto {
   @IsOptional()
   languages?: string[];
   @ApiPropertyOptional() @IsNumber() @IsOptional() score?: number;
-  @ApiPropertyOptional() @IsString() @IsOptional() courseId?: string;
+  @ApiPropertyOptional() @IsUUID() @IsOptional() courseId?: string;
   @ApiPropertyOptional({ type: [TestCaseDto] })
   @IsArray()
   @ValidateNested({ each: true })
@@ -63,7 +64,7 @@ export class ListExercisesDto {
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => String)
-  @IsString()
+  @IsUUID()
   courseId?: string;
   @ApiPropertyOptional({ enum: Difficulty })
   @IsEnum(Difficulty)

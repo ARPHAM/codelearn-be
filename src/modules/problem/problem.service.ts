@@ -23,6 +23,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { AssignmentProblem } from '../assignment/entities/assignment-problem.entity';
 import { standardizeDescription } from './utils/description.util';
 
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../notification/entities/notification.entity';
+
 @Injectable()
 export class ProblemService {
   constructor(
@@ -36,6 +39,7 @@ export class ProblemService {
     @InjectRepository(AssignmentProblem)
     private assignmentProblemRepo: Repository<AssignmentProblem>,
     @InjectQueue('code-execution') private codeQueue: Queue,
+    private notificationService: NotificationService,
   ) {}
 
   async create(dto: CreateProblemDto, user: User) {
@@ -115,37 +119,40 @@ export class ProblemService {
     };
   }
 
-  // Admin sees everything with filters and pagination
   async findAllForAdmin(query: FilterProblemDto) {
     const qb = this.problemRepo
       .createQueryBuilder('problem')
       .leftJoinAndSelect('problem.createdBy', 'createdBy')
       .leftJoinAndSelect('problem.stats', 'stats');
 
-    if (query.search) {
+    if (query.search && query.search.trim() !== '') {
       qb.andWhere(
         '(problem.title ILIKE :search OR problem.slug ILIKE :search)',
         { search: `%${query.search}%` },
       );
     }
 
-    if (query.authorId) {
-      qb.andWhere('problem.created_by = :authorId', {
+    if (query.authorId && query.authorId !== '') {
+      qb.andWhere('createdBy.id = :authorId', {
         authorId: query.authorId,
       });
     }
 
-    if (query.difficulty) {
+    if (query.difficulty && query.difficulty !== '') {
       qb.andWhere('problem.difficulty = :difficulty', {
         difficulty: query.difficulty,
       });
     }
 
-    if (query.status) {
-      qb.andWhere('problem.status = :status', { status: query.status });
+    if (query.status && query.status !== '') {
+      if (query.status === 'INACTIVE') {
+        qb.andWhere('problem.status IN (:...statuses)', { statuses: ['INACTIVE', 'PENDING'] });
+      } else {
+        qb.andWhere('problem.status = :status', { status: query.status });
+      }
     }
 
-    if (query.courseId) {
+    if (query.courseId && query.courseId !== '') {
       qb.innerJoin(
         AssignmentProblem,
         'ap',
@@ -153,19 +160,26 @@ export class ProblemService {
       ).andWhere('ap.course_id = :courseId', { courseId: query.courseId });
     }
 
-    qb.orderBy('problem.createdAt', 'DESC');
+    const page = query.page || 1;
+    const limit = query.limit || 10;
 
-    const total = await qb.getCount();
-    const items = await qb
-      .skip(((query.page || 1) - 1) * (query.limit || 10))
-      .take(query.limit || 10)
-      .getMany();
+    const sortBy = query.sortBy || 'createdAt';
+    const sortOrder = query.sortOrder || 'DESC';
+    const sortField = ['totalSubmissions', 'acceptanceRate'].includes(sortBy)
+      ? `stats.${sortBy}`
+      : `problem.${sortBy}`;
+
+    qb.orderBy(sortField, sortOrder)
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [items, total] = await qb.getManyAndCount();
 
     return {
       items,
       total,
-      page: query.page,
-      limit: query.limit,
+      page,
+      limit,
     };
   }
 
@@ -220,7 +234,14 @@ export class ProblemService {
 
     const page = query.page || 1;
     const limit = query.limit || 10;
-    qb.orderBy('problem.createdAt', 'DESC');
+        const sortBy = query.sortBy || 'createdAt';
+    const sortOrder = query.sortOrder || 'DESC';
+    const sortField = ['totalSubmissions', 'acceptanceRate'].includes(sortBy)
+      ? `stats.${sortBy}`
+      : `problem.${sortBy}`;
+
+    qb.orderBy(sortField, sortOrder);
+
     qb.skip((page - 1) * limit).take(limit);
 
     const [items, total] = await qb.getManyAndCount();
@@ -272,7 +293,14 @@ export class ProblemService {
 
     const page = query.page || 1;
     const limit = query.limit || 10;
-    qb.orderBy('problem.createdAt', 'DESC');
+        const sortBy = query.sortBy || 'createdAt';
+    const sortOrder = query.sortOrder || 'DESC';
+    const sortField = ['totalSubmissions', 'acceptanceRate'].includes(sortBy)
+      ? `stats.${sortBy}`
+      : `problem.${sortBy}`;
+
+    qb.orderBy(sortField, sortOrder);
+
     qb.skip((page - 1) * limit).take(limit);
 
     const [items, total] = await qb.getManyAndCount();
@@ -608,7 +636,7 @@ export class ProblemService {
   async approveVersion(versionId: string) {
     const version = await this.versionRepo.findOne({
       where: { id: versionId },
-      relations: ['problem'],
+      relations: ['problem', 'createdBy'],
     });
     if (!version) throw new NotFoundException('Version not found');
 
@@ -621,27 +649,47 @@ export class ProblemService {
     problem.currentVersionId = version.id;
     await this.problemRepo.save(problem);
 
+    // Send Notification
+    await this.notificationService.create({
+      userId: version.createdBy.id,
+      type: NotificationType.APPROVAL,
+      title: 'Bài tập đã được duyệt',
+      message: `Chúc mừng! Bài tập "${problem.title}" của bạn đã được phê duyệt và đưa vào hệ thống.`,
+      metadata: { problemId: problem.id, versionId: version.id },
+    });
+
     return { message: 'Version approved successfully', problemId: problem.id };
   }
 
   // Admin rejects a version
-  async rejectVersion(versionId: string) {
+  async rejectVersion(versionId: string, reason: string) {
     const version = await this.versionRepo.findOne({
       where: { id: versionId },
-      relations: ['problem'],
+      relations: ['problem', 'createdBy'],
     });
     if (!version) throw new NotFoundException('Version not found');
 
     version.status = 'REJECTED';
     await this.versionRepo.save(version);
 
-    // If the problem was pointing to this version as current, we might want to reconsider its status.
-    // However, usually only pending (INACTIVE) problems get rejected.
     const problem = version.problem;
-    if (problem.currentVersionId === version.id || problem.status === 'INACTIVE') {
+    if (
+      problem.currentVersionId === version.id ||
+      problem.status === 'INACTIVE' ||
+      problem.status === 'PENDING'
+    ) {
       problem.status = 'REJECTED';
       await this.problemRepo.save(problem);
     }
+
+    // Send Notification
+    await this.notificationService.create({
+      userId: version.createdBy.id,
+      type: NotificationType.REJECTION,
+      title: 'Bài tập bị từ chối',
+      message: `Bài tập "${problem.title}" bị từ chối. Lý do: ${reason || 'Không có lý do cụ thể.'}`,
+      metadata: { problemId: problem.id, versionId: version.id, reason },
+    });
 
     return { message: 'Version rejected successfully', problemId: problem.id };
   }
@@ -725,5 +773,15 @@ export class ProblemService {
     });
 
     return { message: 'Đã bắt đầu quá trình xác thực giải pháp...', submissionId: subId };
+  }
+  async getRandomProblem() {
+    const problems = await this.problemRepo.find({
+      where: { status: 'ACTIVE', visibility: 'PUBLIC' },
+      select: ['id', 'slug'],
+    });
+    if (problems.length === 0)
+      throw new NotFoundException('No active problems available for battle');
+    const randomIndex = Math.floor(Math.random() * problems.length);
+    return problems[randomIndex];
   }
 }

@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Like, Repository } from 'typeorm';
+import { Like, Repository, MoreThanOrEqual } from 'typeorm';
 
 import { User } from '../user/entities/user.entity';
 import { Role } from '../../common/enums/role.enum';
@@ -114,8 +114,8 @@ export class AdminService {
       findOptions.take = Number(limit);
     }
 
-    const lecturers = await this.userRepo.find(findOptions);
-    return [...lecturers];
+    const [items, total] = await this.userRepo.findAndCount(findOptions);
+    return { items, total };
   }
 
   async listStudents(query: any = {}) {
@@ -157,7 +157,54 @@ export class AdminService {
       findOptions.take = Number(limit);
     }
 
-    const students = await this.userRepo.find(findOptions);
-    return [...students];
+    const [items, total] = await this.userRepo.findAndCount(findOptions);
+    return { items, total };
+  }
+
+  async getStats() {
+    const totalLecturers = await this.userRepo.count({
+      where: { role: Role.LECTURER },
+    });
+    const totalStudents = await this.userRepo.count({
+      where: { role: Role.STUDENT },
+    });
+
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const newUsersThisWeek = await this.userRepo.count({
+      where: { createdAt: MoreThanOrEqual(oneWeekAgo) },
+    });
+
+    const blockedUsers = await this.userRepo.count({
+      where: { status: 'inactive' },
+    });
+
+    return {
+      totalLecturers,
+      totalStudents,
+      newUsersThisWeek,
+      blockedUsers,
+    };
+  }
+
+  async getUser(id: string) {
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('Nguoi dung khong ton tai');
+    return user;
+  }
+
+  async updateUser(id: string, dto: any) {
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('Nguoi dung khong ton tai');
+
+    // Chi cho phep cap nhat cac truong hop le
+    const allowedFields = ['fullName', 'status', 'role', 'mssv', 'major'];
+    allowedFields.forEach(field => {
+      if (dto[field] !== undefined) {
+        user[field] = dto[field];
+      }
+    });
+
+    return this.userRepo.save(user);
   }
 }

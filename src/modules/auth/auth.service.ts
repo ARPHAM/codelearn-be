@@ -11,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 
 import { User } from '../user/entities/user.entity';
+import { Role } from '../../common/enums/role.enum';
 import { LoginDto, RegisterDto, ForgotPasswordDto } from './dto/auth.dto';
 
 @Injectable()
@@ -57,6 +58,13 @@ export class AuthService {
       throw new UnauthorizedException('Email hoac mat khau khong dung');
     }
 
+    if (user.status !== 'active') {
+      if (user.status === 'pending') {
+        throw new UnauthorizedException('Tài khoản của bạn đang chờ quản trị viên phê duyệt');
+      }
+      throw new UnauthorizedException('Tài khoản của bạn đã bị khóa hoặc không khả dụng');
+    }
+
     const tokens = this.generateTokens(user);
 
     return {
@@ -90,6 +98,7 @@ export class AuthService {
       role: dto.role,
       major: dto.major,
       passwordHash,
+      status: dto.role === Role.LECTURER ? 'pending' : 'active',
     });
 
     const saved = await this.userRepo.save(user);

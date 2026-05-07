@@ -3,12 +3,14 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   Index,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
+import { Enrollment } from './enrollment.entity';
 
 @Entity('courses')
 @Index(['semester'])
@@ -32,15 +34,18 @@ export class Course {
   @Column({ name: 'end_date', type: 'timestamp', nullable: true })
   endDate: Date | null;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'lecturer_id' })
-  lecturer: User;
+  lecturer: User | null;
 
   @Column({ name: 'description', type: 'text', nullable: true })
   description: string;
 
   @Column({ default: 'active' })
   status: string;
+
+  @OneToMany(() => Enrollment, (enrollment) => enrollment.course)
+  enrollments: Enrollment[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

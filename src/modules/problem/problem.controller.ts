@@ -125,8 +125,8 @@ export class ProblemController {
   @ApiOperation({
     summary: 'Admin rejects a problem version',
   })
-  rejectVersion(@Param('versionId') versionId: string) {
-    return this.problemService.rejectVersion(versionId);
+  rejectVersion(@Param('versionId') versionId: string, @Body('reason') reason: string) {
+    return this.problemService.rejectVersion(versionId, reason);
   }
 
   @Post('versions/:versionId/verify-solution')

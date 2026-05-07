@@ -14,6 +14,8 @@ import { SubmissionProcessor } from './submission.processor';
 import { SubmissionCleanupService } from './submission-cleanup.service';
 import { ExecutionModule } from '../execution/execution.module';
 import { AdminModule } from '../admin/admin.module';
+import { forwardRef } from '@nestjs/common';
+import { BattleModule } from '../battle/battle.module';
 
 @Module({
   imports: [
@@ -28,6 +30,7 @@ import { AdminModule } from '../admin/admin.module';
     ]),
     ExecutionModule,
     AdminModule,
+    forwardRef(() => BattleModule),
     BullModule.registerQueue({
       name: 'code-execution',
     }),

@@ -41,14 +41,15 @@ export class ExerciseService {
   }
 
   async create(dto: CreateExerciseDto, creator: User) {
+    const { testCases, ...exerciseData } = dto;
     const exercise = this.exerciseRepo.create({
-      ...dto,
+      ...exerciseData,
       creatorId: creator.id,
-      status: 'draft',
+      status: 'DRAFT',
     });
     const saved = await this.exerciseRepo.save(exercise);
-    if (dto.testCases?.length) {
-      const cases = dto.testCases.map((tc, idx) =>
+    if (testCases?.length) {
+      const cases = testCases.map((tc, idx) =>
         this.testCaseRepo.create({
           exerciseId: saved.id,
           input: tc.input,
@@ -59,7 +60,7 @@ export class ExerciseService {
       );
       await this.testCaseRepo.save(cases);
     }
-    return { id: saved.id, message: 'Tao bai tap thanh cong', status: 'draft' };
+    return { id: saved.id, message: 'Tao bai tap thanh cong', status: 'DRAFT' };
   }
 
   async update(id: number, dto: UpdateExerciseDto, currentUser: User) {
@@ -77,5 +78,24 @@ export class ExerciseService {
       message: 'Cap nhat thanh cong',
       updatedAt: new Date().toISOString(),
     };
+  }
+
+  async submitForApproval(id: number, creator: User) {
+    const exercise = await this.exerciseRepo.findOne({ where: { id } });
+    if (!exercise) throw new NotFoundException('Bai tap khong ton tai');
+    if (exercise.creatorId !== creator.id && creator.role !== Role.ADMIN) {
+      throw new ForbiddenException('Ban khong co quyen gui duyet bai tap nay');
+    }
+    exercise.status = 'PENDING';
+    await this.exerciseRepo.save(exercise);
+    return { message: 'Da gui duyet bai tap', status: 'PENDING' };
+  }
+
+  async approve(id: number) {
+    const exercise = await this.exerciseRepo.findOne({ where: { id } });
+    if (!exercise) throw new NotFoundException('Bai tap khong ton tai');
+    exercise.status = 'APPROVED';
+    await this.exerciseRepo.save(exercise);
+    return { message: 'Da phe duyet bai tap', status: 'APPROVED' };
   }
 }

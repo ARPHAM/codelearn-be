@@ -1,4 +1,5 @@
 import { Process, Processor } from '@nestjs/bull';
+import { Inject, forwardRef } from '@nestjs/common';
 import type { Job } from 'bull';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -14,6 +15,7 @@ import { SubmissionStatus } from '../../shared/enums/submission-status.enum';
 import { Testcase } from '../problem/entities/testcase.entity';
 import { ProblemVersion } from '../problem/entities/problem-version.entity';
 import { SystemSettingsService } from '../admin/system-settings.service';
+import { BattleService } from '../battle/battle.service';
 
 const execAsync = promisify(exec);
 
@@ -31,6 +33,8 @@ export class SubmissionProcessor {
     private readonly configService: ConfigService,
     private readonly executionGateway: ExecutionGateway,
     private readonly systemSettingsService: SystemSettingsService,
+    @Inject(forwardRef(() => BattleService))
+    private readonly battleService: BattleService,
   ) {}
 
   @Process()
@@ -447,6 +451,21 @@ export class SubmissionProcessor {
         console.log(
           `[Submission] Result emitted via WebSocket for ID: ${submissionId}`,
         );
+
+        // Cập nhật tiến độ Battle nếu cần
+        if (subContext === 'BATTLE') {
+          const sub = await this.submissionRepo.findOne({
+            where: { id: submissionId },
+            select: ['contextId', 'user', 'testcasePassed'],
+            relations: ['user'],
+          });
+          if (sub && sub.contextId) {
+            // Tính toán % tiến độ (giả sử maxScore hoặc testcasesTotal là 100%)
+            // Ở đây ta dùng testcasesPassed / total để ra %
+            const percent = results.length > 0 ? Math.round((testcasesPassed / results.length) * 100) : 0;
+            await this.battleService.updateProgress(sub.contextId, sub.user.id, percent);
+          }
+        }
       } catch (wsError) {
         console.error(`[Submission] WebSocket error: ${wsError}`);
       }

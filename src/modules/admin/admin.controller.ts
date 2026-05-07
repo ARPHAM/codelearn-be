@@ -111,4 +111,22 @@ export class AdminController {
   listStudents(@Query() query: any) {
     return this.adminService.listStudents(query);
   }
+
+  @Get('users/stats')
+  @ApiOperation({ summary: 'Lay thong ke nguoi dung' })
+  getStats() {
+    return this.adminService.getStats();
+  }
+
+  @Get('users/:id')
+  @ApiOperation({ summary: 'Lay chi tiet nguoi dung' })
+  getUser(@Param('id') id: string) {
+    return this.adminService.getUser(id);
+  }
+
+  @Patch('users/:id')
+  @ApiOperation({ summary: 'Cap nhat nguoi dung' })
+  updateUser(@Param('id') id: string, @Body() dto: any) {
+    return this.adminService.updateUser(id, dto);
+  }
 }

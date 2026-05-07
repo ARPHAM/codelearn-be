@@ -21,7 +21,7 @@ import { User } from '../user/entities/user.entity';
 
 @ApiTags('Exam & Placement')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('exam')
 export class ExamController {
   constructor(
@@ -30,20 +30,49 @@ export class ExamController {
     private readonly examRegradeService: ExamRegradeService,
   ) {}
 
+  @Get('ping')
+  @ApiOperation({ summary: 'Kiểm tra trạng thái module' })
+  ping() {
+    return { status: 'ok', module: 'ExamModule' };
+  }
+
+  @Get()
+  @Roles(Role.STUDENT, Role.LECTURER, Role.ADMIN)
+  @ApiOperation({ summary: 'Lấy tất cả đề thi' })
+  findAllExams() {
+    return this.examService.findAll();
+  }
+
+  @Post('create')
+  @Roles(Role.LECTURER, Role.ADMIN)
+  @ApiOperation({ summary: 'Tạo đề thi mới' })
+  create(@Body() dto: any) {
+    console.log('[ExamController] Creating exam with data:', dto);
+    return this.examService.create(dto);
+  }
+
   @Get('course/:courseId')
+  @Roles(Role.STUDENT, Role.LECTURER, Role.ADMIN)
   @ApiOperation({ summary: 'Lấy danh sách đề thi của một lớp học' })
   findAll(@Param('courseId') courseId: string) {
     return this.examService.findAllForCourse(courseId);
   }
 
+  @Get('my-upcoming')
+  @Roles(Role.STUDENT)
+  @ApiOperation({ summary: 'Lấy danh sách các kỳ thi sắp tới của sinh viên' })
+  getUpcoming(@CurrentUser() user: User) {
+    return this.examService.getUpcomingExams(user.id);
+  }
+
   @Get(':id')
+  @Roles(Role.STUDENT, Role.LECTURER, Role.ADMIN)
   @ApiOperation({ summary: 'Chi tiết đề thi' })
   findOne(@Param('id') id: string) {
     return this.examService.findOne(id);
   }
 
   @Post(':id/submit-approval')
-  @UseGuards(RolesGuard)
   @Roles(Role.LECTURER)
   @ApiOperation({ summary: 'Giảng viên gửi đề thi cho Admin duyệt (kiểm tra Rule)' })
   submitForApproval(@Param('id') id: string, @CurrentUser() user: User) {
@@ -51,7 +80,6 @@ export class ExamController {
   }
 
   @Patch(':id/approve')
-  @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Admin duyệt đề thi' })
   approve(@Param('id') id: string) {
@@ -59,18 +87,65 @@ export class ExamController {
   }
 
   @Post(':id/start')
-  @UseGuards(RolesGuard)
   @Roles(Role.STUDENT)
-  @ApiOperation({ summary: 'Sinh viên bắt đầu thi (Hệ thống bốc đề riêng)' })
+  @ApiOperation({ summary: 'Bắt đầu kỳ thi (sinh đề riêng cho sinh viên)' })
   start(@Param('id') id: string, @CurrentUser() user: User) {
-    return this.examGenService.generateForUser(id, user.id);
+    return this.examService.startExam(id, user.id);
   }
 
   @Post(':id/regrade')
-  @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Admin yêu cầu chấm lại toàn bộ bài thi' })
   regrade(@Param('id') id: string) {
     return this.examRegradeService.regradeExam(id);
+  }
+
+  @Post(':id/recalculate-scores')
+  @Roles(Role.ADMIN, Role.LECTURER)
+  @ApiOperation({ summary: 'Tính toán lại điểm cho tất cả thí sinh' })
+  recalculate(@Param('id') id: string) {
+    return this.examService.recalculateAllScores(id);
+  }
+
+  @Post(':id/log-violation')
+  @Roles(Role.STUDENT)
+  @ApiOperation({ summary: 'Ghi lại log vi phạm (chuyển tab, rời khỏi trang)' })
+  logViolation(
+    @Param('id') id: string,
+    @CurrentUser() user: User,
+    @Body() metadata: any,
+  ) {
+    return this.examService.logViolation(id, user.id, metadata);
+  }
+
+  @Post(':id/finish')
+  @Roles(Role.STUDENT)
+  @ApiOperation({ summary: 'Kết thúc kỳ thi và tính điểm' })
+  finish(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.examService.finishExam(id, user.id);
+  }
+
+  @Get(':id/result')
+  @Roles(Role.STUDENT, Role.LECTURER, Role.ADMIN)
+  @ApiOperation({ summary: 'Lấy kết quả thi của sinh viên' })
+  getResult(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.examService.getExamResult(id, user.id);
+  }
+
+  @Get(':id/monitoring')
+  @Roles(Role.LECTURER, Role.ADMIN)
+  @ApiOperation({ summary: 'Lấy dữ liệu giám sát kỳ thi (Admin/Giảng viên)' })
+  async monitoring(@Param('id') id: string) {
+    return this.examService.getMonitoringData(id);
+  }
+
+  @Get(':id/monitoring/:userId')
+  @Roles(Role.LECTURER, Role.ADMIN)
+  @ApiOperation({ summary: 'Lấy dữ liệu log chi tiết của một sinh viên' })
+  async studentLogs(
+    @Param('id') id: string,
+    @Param('userId') userId: string
+  ) {
+    return this.examService.getStudentLogs(id, userId);
   }
 }

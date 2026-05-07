@@ -10,18 +10,29 @@ import * as bcrypt from 'bcrypt';
 import { User } from './entities/user.entity';
 import { Role } from '../../common/enums/role.enum';
 import { UpdateProfileDto, ChangePasswordDto } from './dto/update-profile.dto';
+import { Submission } from '../submission/entities/submission.entity';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
     private userRepo: Repository<User>,
+    @InjectRepository(Submission)
+    private subRepo: Repository<Submission>,
   ) {}
 
   async findAllLecturers() {
     return this.userRepo.find({
       where: { role: Role.LECTURER },
       select: ['id', 'fullName', 'email', 'avatarUrl'],
+      order: { fullName: 'ASC' },
+    });
+  }
+
+  async findAllStudents() {
+    return this.userRepo.find({
+      where: { role: Role.STUDENT },
+      select: ['id', 'fullName', 'email', 'mssv', 'avatarUrl'],
       order: { fullName: 'ASC' },
     });
   }
@@ -73,5 +84,24 @@ export class UserService {
     await this.userRepo.save(user);
 
     return { message: 'Đổi mật khẩu thành công' };
+  }
+
+  async getStudentStats(userId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const solvedCount = await this.subRepo.createQueryBuilder('sub')
+      .innerJoin('sub.problemVersion', 'pv')
+      .where('sub.user.id = :userId', { userId })
+      .andWhere('sub.status = :status', { status: 'ACCEPTED' })
+      .select('COUNT(DISTINCT pv.problem_id)', 'count')
+      .getRawOne();
+
+    return {
+      xp: user.xp || 0,
+      rating: user.rating || 1200,
+      solvedCount: parseInt(solvedCount?.count || '0'),
+      rank: user.xp > 1000 ? 'Silver' : 'Bronze'
+    };
   }
 }

@@ -48,8 +48,8 @@ export class BattleSession {
   @Column({ type: 'int', default: 0, name: 'player2_progress' })
   player2Progress: number;
 
-  @Column({ name: 'winner_id', nullable: true })
-  winnerId: string;
+  @Column({ type: 'varchar', name: 'winner_id', nullable: true })
+  winnerId: string | null;
 
   @Column({ type: 'timestamp', name: 'started_at', nullable: true })
   startedAt: Date;

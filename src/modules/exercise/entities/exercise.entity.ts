@@ -37,7 +37,7 @@ export class Exercise {
   @Column({ type: 'jsonb', nullable: true })
   hints: string[];
 
-  @Column({ default: 'draft' })
+  @Column({ default: 'DRAFT' })
   status: string;
 
   @Column({ name: 'course_id', type: 'uuid', nullable: true })
